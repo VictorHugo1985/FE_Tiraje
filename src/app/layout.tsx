@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import ThemeRegistry from "../theme/ThemeRegistry";
+import RootLayoutContent from "./RootLayoutContent"; // Importa el nuevo componente cliente
 
 // Importa los pesos de la fuente Roboto
 import '@fontsource/roboto/300.css';
@@ -22,7 +23,7 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <ThemeRegistry>
-          {children}
+          <RootLayoutContent>{children}</RootLayoutContent>
         </ThemeRegistry>
       </body>
     </html>

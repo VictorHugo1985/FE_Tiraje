@@ -6,6 +6,7 @@ import { Typography, TypographyProps, SxProps, Theme } from '@mui/material';
 
 interface ChronometerProps {
   running: boolean;
+  startTime?: Date | null; // New prop
   variant?: TypographyProps['variant'];
   sx?: SxProps<Theme>;
 }
@@ -19,16 +20,23 @@ const formatTime = (timeInSeconds: number) => {
     .join(':');
 };
 
-export default function JobCardChronometer({ running, variant = 'h3', sx }: ChronometerProps) {
-  const [time, setTime] = useState(0);
+export default function JobCardChronometer({ running, startTime = null, variant = 'body2', sx }: ChronometerProps) { // Default variant changed to body2
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
 
-    if (running) {
-      interval = setInterval(() => {
-        setTime((prevTime) => prevTime + 1);
-      }, 1000);
+    if (running && startTime) {
+      const startTimestamp = startTime.getTime();
+      const calculateElapsedTime = () => {
+        setElapsedTime(Math.floor((Date.now() - startTimestamp) / 1000));
+      };
+
+      calculateElapsedTime(); // Initial calculation
+      interval = setInterval(calculateElapsedTime, 1000);
+    } else {
+      // If not running or no startTime, reset elapsed time
+      setElapsedTime(0);
     }
 
     return () => {
@@ -36,11 +44,11 @@ export default function JobCardChronometer({ running, variant = 'h3', sx }: Chro
         clearInterval(interval);
       }
     };
-  }, [running]);
+  }, [running, startTime]);
 
   return (
     <Typography variant={variant} component="p" sx={sx}>
-      {formatTime(time)}
+      {formatTime(elapsedTime)}
     </Typography>
   );
 }

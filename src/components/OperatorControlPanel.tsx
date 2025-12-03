@@ -1,7 +1,7 @@
 // src/components/OperatorControlPanel.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Button,
@@ -19,170 +19,600 @@ import {
   ListItem,
   ListItemText,
   Divider,
+  Fab,
+  TextField,
+  Chip, // Import Chip
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PersonIcon from '@mui/icons-material/Person';
 import OperatorChronometer from './OperatorChronometer';
+import ConfirmationDialog from './ConfirmationDialog';
+import { updateJob, addTimelineEvent, TimelineEventType, getPauseCauses } from '../services/api';
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
+
+interface PauseCause {
+  _id: string;
+  name: string;
+  description?: string;
+}
 
 interface OperatorControlPanelProps {
   job: any; // In a real app, use a proper type
   onBackToList: () => void;
+  refetchJob: () => Promise<void>; // New prop
+  disableAllControls: boolean; // New prop to disable all controls
 }
 
-interface StopEvent {
-  cause: string;
-  timestamp: Date;
-}
+// ... (el resto de los helpers como formatTime y getEventPairs se mantienen igual)
+const formatTime = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
 
-export default function OperatorControlPanel({ job, onBackToList }: OperatorControlPanelProps) {
-  const [isTirajeActive, setIsTirajeActive] = useState(true);
+const getEventPairs = (timeline: any[], startType: TimelineEventType, endType: TimelineEventType) => {
+  const pairs: { start: Date | null; end: Date | null; cause?: string }[] = [];
+  let currentStart: Date | null = null;
+  let currentCause: string | undefined = undefined;
+
+  const sortedTimeline = [...timeline].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  sortedTimeline.forEach(event => {
+    if (event.type === startType) {
+      currentStart = new Date(event.timestamp);
+      currentCause = event.details?.cause;
+    } else if (event.type === endType && currentStart) {
+      pairs.push({ start: currentStart, end: new Date(event.timestamp), cause: currentCause });
+      currentStart = null;
+      currentCause = undefined;
+    }
+  });
+
+  if (currentStart) {
+    pairs.push({ start: currentStart, end: null, cause: currentCause });
+  }
+
+  return pairs;
+};
+
+
+export default function OperatorControlPanel({ job, onBackToList, refetchJob, disableAllControls }: OperatorControlPanelProps) {
+  const { user, isLoading } = useAuth(); // Obtener el usuario y el estado de carga del contexto
+  const [isJobStarted, setIsJobStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isPuestaPunto, setIsPuestaPunto] = useState(false);
   const [paradaCause, setParadaCause] = useState('');
-  const [stopsHistory, setStopsHistory] = useState<StopEvent[]>([]);
+  const [openConfirmation, setOpenConfirmation] = useState(false);
+  const [openGeneralPauseConfirmation, setOpenGeneralPauseConfirmation] = useState(false);
+  const [velocidadConfigurada, setVelocidadConfigurada] = useState('');
 
-  const handleStop = () => {
-    if (paradaCause) {
-      setStopsHistory([...stopsHistory, { cause: paradaCause, timestamp: new Date() }]);
+  const [horaInicio, setHoraInicio] = useState<Date | null>(null);
+  const [horaFinal, setHoraFinal] = useState<Date | null>(null);
+  const [isTirajeActive, setIsTirajeActive] = useState(false);
+  const [pauseCauses, setPauseCauses] = useState<PauseCause[]>([]);
+  const [operatorComments, setOperatorComments] = useState<string>('');
+  const [puestaPuntoHistory, setPuestaPuntoHistory] = useState<{ start: Date | null; end: Date | null }[]>([]);
+  const [resetSetupChronometer, setResetSetupChronometer] = useState(false);
+  const [pauseHistory, setPauseHistory] = useState<{ start: Date | null; end: Date | null; cause?: string }[]>([]);
+  const [mainChronometerInitialTime, setMainChronometerInitialTime] = useState(0);
+
+  const [isSpeedDirty, setIsSpeedDirty] = useState(false);
+  const [isCommentsDirty, setIsCommentsDirty] = useState(false);
+
+  const commentsRef = useRef<HTMLInputElement>(null);
+  const speedRef = useRef<HTMLInputElement>(null);
+
+
+  useEffect(() => {
+    if (isLoading) return; // No hacer nada si la autenticación está cargando
+
+    const fetchPauseCauses = async () => {
+      try {
+        const causes = await getPauseCauses();
+        setPauseCauses(causes);
+      } catch (error) {
+        console.error("Failed to fetch pause causes:", error);
+      }
+    };
+    fetchPauseCauses();
+  }, [isLoading]); // Depender de isLoading
+
+  // Efecto solo para sincronizar la velocidad
+  useEffect(() => {
+    if (job && !isSpeedDirty) {
+      setVelocidadConfigurada(job.machineSpeed || '');
     }
-    setIsPaused(true);
-    // Here you would also update the job status globally
+  }, [job?.machineSpeed, isSpeedDirty]);
+
+  // Efecto solo para sincronizar los comentarios
+  useEffect(() => {
+    if (job && !isCommentsDirty) {
+      setOperatorComments(job.operatorComments || '');
+    }
+  }, [job?.operatorComments, isCommentsDirty]);
+
+
+  useEffect(() => {
+    if (!job || !job.timeline) return;
+
+    let currentIsJobStarted = false;
+    let currentIsPaused = false;
+    let currentIsPuestaPunto = false;
+    let currentHoraInicio: Date | null = null;
+    let currentHoraFinal: Date | null = null;
+    let lastPauseType = '';
+
+    const sortedTimeline = [...job.timeline].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    const firstProductionStartEvent = sortedTimeline.find(event => event.type === TimelineEventType.PRODUCTION_START);
+    if (firstProductionStartEvent) {
+      currentHoraInicio = new Date(firstProductionStartEvent.timestamp);
+      currentIsJobStarted = true; // Job has started at some point
+    }
+
+    const lastProductionEndEvent = sortedTimeline.filter(event => event.type === TimelineEventType.PRODUCTION_END).pop();
+    if (lastProductionEndEvent) {
+      currentHoraFinal = new Date(lastProductionEndEvent.timestamp);
+      currentIsJobStarted = false; // Job is considered not started if it has ended
+    }
+    
+    // Determine current state based on the latest events, ignoring overall start/end for active state
+    let lastProductionStart: Date | null = null;
+    let lastProductionEnd: Date | null = null;
+    let lastPauseStart: Date | null = null;
+    let lastPauseEnd: Date | null = null;
+    let lastSetupStart: Date | null = null;
+    let lastSetupEnd: Date | null = null;
+
+    sortedTimeline.forEach((event: any) => {
+      const timestamp = new Date(event.timestamp);
+      switch (event.type) {
+        case TimelineEventType.PRODUCTION_START:
+          lastProductionStart = timestamp;
+          break;
+        case TimelineEventType.PRODUCTION_END:
+          lastProductionEnd = timestamp;
+          break;
+        case TimelineEventType.PAUSE_START:
+          lastPauseStart = timestamp;
+          lastPauseType = event.details?.cause || '';
+          break;
+        case TimelineEventType.PAUSE_END:
+          lastPauseEnd = timestamp;
+          lastPauseType = '';
+          break;
+        case TimelineEventType.SETUP_START:
+          lastSetupStart = timestamp;
+          break;
+        case TimelineEventType.SETUP_END:
+          lastSetupEnd = timestamp;
+          break;
+      }
+    });
+
+    // Determine current active states
+    currentIsJobStarted = lastProductionStart && (!lastProductionEnd || lastProductionStart.getTime() > lastProductionEnd.getTime());
+    currentIsPaused = lastPauseStart && (!lastPauseEnd || lastPauseStart.getTime() > lastPauseEnd.getTime());
+    currentIsPuestaPunto = lastSetupStart && (!lastSetupEnd || lastSetupStart.getTime() > lastSetupEnd.getTime());
+
+    // Calculate initial chronometer time
+    let totalProductionDuration = 0;
+    if (currentHoraInicio) { // Use the overall first production start
+      const end = currentIsJobStarted ? new Date() : currentHoraFinal || new Date(); // If currently running, use now, else overall end
+      totalProductionDuration = (end.getTime() - currentHoraInicio.getTime()) / 1000;
+    }
+
+    const initialTime = totalProductionDuration - (job.totalPauseTime || 0);
+    setMainChronometerInitialTime(initialTime < 0 ? 0 : initialTime);
+
+    // Set all other states
+    setIsJobStarted(currentIsJobStarted);
+    setIsPaused(currentIsPaused);
+    setIsPuestaPunto(currentIsPuestaPunto);
+    setHoraInicio(currentHoraInicio);
+    setHoraFinal(currentHoraFinal);
+    setIsTirajeActive(currentIsJobStarted || currentIsPaused || currentIsPuestaPunto); // Should be true if job has started and not finished
+    setParadaCause(lastPauseType);
+
+    setPuestaPuntoHistory(getEventPairs(job.timeline, TimelineEventType.SETUP_START, TimelineEventType.SETUP_END));
+    setPauseHistory(getEventPairs(job.timeline, TimelineEventType.PAUSE_START, TimelineEventType.PAUSE_END));
+
+  }, [job]);
+
+  useEffect(() => {
+    // Only refetch if the job is actively 'en curso'
+    if (job?.status === 'en_curso') {
+      const interval = setInterval(() => {
+        refetchJob();
+      }, 5000); // Refetch every 5 seconds to keep chronometers and states in sync
+
+      return () => clearInterval(interval);
+    }
+  }, [job?.status, refetchJob]);
+
+
+  const handleTimelineEvent = async (type: TimelineEventType, details?: Record<string, any>) => {
+    try {
+      await addTimelineEvent(job._id, {
+        timestamp: new Date(),
+        type,
+        details,
+      });
+      await refetchJob(); // Ensure data is fresh after any event
+    } catch (error) {
+      console.error(`Failed to add timeline event ${type}:`, error);
+    }
+  };
+  
+  const handleStartJob = async () => {
+    try {
+      await updateJob(job._id, {
+        status: 'en_curso',
+        operatorComments,
+        machineSpeed: velocidadConfigurada,
+        startedByUserId: user.userId // Capture the user ID here
+      });
+      await handleTimelineEvent(TimelineEventType.PRODUCTION_START);
+    } catch (error) {
+      console.error("Failed to start job:", error);
+    }
   };
 
-  const handleResume = () => {
-    setIsPaused(false);
-    setParadaCause('');
-    // Here you would also update the job status globally
+  const handleStop = async () => {
+    if (paradaCause) {
+      try {
+        await updateJob(job._id, { status: 'pausado' });
+        await handleTimelineEvent(TimelineEventType.PAUSE_START, { cause: paradaCause });
+      } catch (error) {
+        console.error("Failed to stop job:", error);
+      }
+    }
   };
 
-  const handleFinish = () => {
-    setIsTirajeActive(false);
-    onBackToList();
-    // Here you would update the job as 'completed'
+  const handleGeneralPauseClick = () => {
+    setOpenGeneralPauseConfirmation(true);
   };
+
+  const handleConfirmGeneralPause = async () => {
+    setOpenGeneralPauseConfirmation(false);
+    try {
+      await updateJob(job._id, { status: 'pausado' });
+      await handleTimelineEvent(TimelineEventType.PAUSE_START, { cause: 'Pausa general' });
+    } catch (error) {
+      console.error("Failed to apply general pause:", error);
+    }
+  };
+
+  const handleResume = async () => {
+    try {
+      await updateJob(job._id, { status: 'en_curso' });
+      await handleTimelineEvent(TimelineEventType.PAUSE_END);
+      setParadaCause('');
+    } catch (error) {
+      console.error("Failed to resume job:", error);
+    }
+  };
+
+  const handleFinishClick = () => {
+    setOpenConfirmation(true);
+  };
+
+  const handleConfirmFinish = async () => {
+    setOpenConfirmation(false);
+    try {
+      await updateJob(job._id, { 
+        status: 'terminado',
+        operatorComments,
+        machineSpeed: velocidadConfigurada
+      });
+      await handleTimelineEvent(TimelineEventType.PRODUCTION_END);
+    } catch (error) {
+        console.error("Failed to finish job:", error);
+    }
+  };
+
+  const handleCloseConfirmation = () => {
+    setOpenConfirmation(false);
+  };
+
+  const handleStartPuestaPunto = () => {
+    handleTimelineEvent(TimelineEventType.SETUP_START);
+  };
+
+  const handleEndPuestaPunto = () => {
+    handleTimelineEvent(TimelineEventType.SETUP_END);
+    setResetSetupChronometer(true);
+  };
+
+  const handleResetSetupChronometer = () => {
+    setResetSetupChronometer(false);
+  };
+
+  const handleCommentsBlur = async () => {
+    if (operatorComments !== job.operatorComments) {
+      try {
+        await updateJob(job._id, { operatorComments: operatorComments });
+        await refetchJob();
+        setIsCommentsDirty(false);
+      } catch (error) {
+        console.error("Failed to save operator comments:", error);
+      }
+    }
+  };
+
+  const handleMachineSpeedBlur = async () => {
+    if (velocidadConfigurada !== job.machineSpeed) {
+      try {
+        await updateJob(job._id, { machineSpeed: velocidadConfigurada });
+        await refetchJob();
+        setIsSpeedDirty(false);
+      } catch (error) {
+        console.error("Failed to save machine speed:", error);
+      }
+    }
+  };
+
+
+  if (isLoading || !user) { // Condición de carga mejorada
+    return <Typography>Cargando...</Typography>;
+  }
 
   return (
-    <Box>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={onBackToList}
-        sx={{ mb: 2 }}
-      >
+    <Box sx={{ position: 'relative', pt: 1 }}>
+      <Box sx={{ position: 'absolute', top: 0, right: 0 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip
+            icon={<PersonIcon sx={{ color: 'white' }} />}
+            label={user.name}
+            sx={{ backgroundColor: '#228B22', color: 'white' }}
+          />
+          <Paper elevation={1} sx={{ px: 1.5, py: 0.5, borderRadius: 2, backgroundColor: 'grey.100' }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              {job.press}
+            </Typography>
+          </Paper>
+        </Stack>
+      </Box>
+
+      {/* ... El resto del JSX se mantiene igual ... */}
+      <Button startIcon={<ArrowBackIcon />} onClick={onBackToList} size='small'>
         Volver al listado
       </Button>
       <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
-        {job.id} - {job.client}
+        {job.ot} - {job.client} - {job.jobType}
+        <Divider sx={{ my: 2 }} />
       </Typography>
 
-      {/* Main Controls */}
-      <Paper elevation={3} sx={{ p: 8, my: 5 }}>
+      <Grid container spacing={2} justifyContent="center" sx={{ mb: 2 }}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            id="machine-speed-input"
+            inputRef={speedRef}
+            label="Velocidad Conf."
+            type="number"
+            value={velocidadConfigurada}
+            onChange={(e) => {
+              setVelocidadConfigurada(e.target.value);
+              setIsSpeedDirty(true);
+            }}
+            onBlur={handleMachineSpeedBlur}
+            disabled={(job.status === 'terminado') || disableAllControls}
+            fullWidth
+            size="small"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Cantidad de Tiraje"
+            value={job.quantityPlanned || 'N/A'}
+            fullWidth
+            variant="outlined"
+            size="small"
+            InputProps={{ readOnly: true }}
+          />
+        </Grid>
+      </Grid>
+
+      <Paper elevation={0} sx={{ p: 0, my: 4, position: 'relative' }}>
         <Typography variant="h4" align="center" gutterBottom>Tiempo de Tiraje</Typography>
         <Stack direction="row" spacing={4} justifyContent="center" alignItems="center">
-          {isPaused ? (
-              <Button variant="contained" color="primary" size="large" onClick={handleResume} sx={{ fontSize: '1.0rem', px: 5, py: 2.5 }}>
+          {!isJobStarted ? (
+            <Fab variant="extended" color="primary" onClick={handleStartJob} sx={{ fontSize: '1.0rem', px: 4, py: 3 }} disabled={(job.status === 'terminado') || disableAllControls}>
+              Iniciar
+            </Fab>
+          ) : isPaused ? (
+              <Fab variant="extended" color="primary" onClick={handleResume} sx={{ fontSize: '1.0rem', px: 4, py: 3 }} disabled={(job.status === 'terminado') || disableAllControls}>
                 Reanudar
-              </Button>
+              </Fab>
             ) : (
-              <Button variant="contained" color="warning" size="large" onClick={handleStop} disabled={!isTirajeActive} sx={{ fontSize: '1.0rem', px: 5, py: 2.5 }}>
+              <Fab variant="extended" color="warning" onClick={handleGeneralPauseClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.odrem', px: 4, py: 3 }}>
                 Pausar
-              </Button>
+              </Fab>
             )}
-          <AccessTimeIcon sx={{ fontSize: 80, color: isTirajeActive && !isPaused ? 'inherit' : 'text.disabled' }} />
-          <OperatorChronometer running={isTirajeActive && !isPaused} variant="h1"/>
-          <Button variant="contained" color="error" size="large" onClick={handleFinish} disabled={!isTirajeActive} sx={{ fontSize: '1.0rem', px: 5, py: 2.5 }}>
+          <AccessTimeIcon sx={{ fontSize: 80, color: (job.status === 'en_curso') ? 'inherit' : 'text.disabled' }} />
+          <OperatorChronometer
+            running={job.status === 'en_curso'}
+            initialElapsedTime={mainChronometerInitialTime}
+          />
+          <Fab variant="extended" color="error" onClick={handleFinishClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', px: 4, py: 3 }}>
             Finalizar
-          </Button>
+          </Fab>
+        </Stack>
+        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 2 }}>
+          {horaInicio && <Typography variant="body1">Hora Inicio: {horaInicio.toLocaleTimeString()}</Typography>}
+          {horaFinal && <Typography variant="body1">Hora Final: {horaFinal.toLocaleTimeString()}</Typography>}
+        </Stack>
+        
+        <Stack spacing={1} sx={{ mt: 4, mx: 'auto', width: '55%' }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'inline-block', mb: 0.5 }}>
+              Comentarios del Supervisor
+            </Typography>
+            <Paper variant="elevation" sx={{ p: 1, minHeight: '40px' }}>
+                <Typography variant="body2">
+                    {job.comments || 'No hay comentarios.'}
+                </Typography>
+            </Paper>
+          </Box>
+          <TextField
+              id="operator-comments-input"
+              name="operator-comments"
+              inputRef={commentsRef}
+              label="Comentarios del Operador"
+              multiline
+              rows={1}
+              fullWidth
+              value={operatorComments}
+              onChange={(e) => {
+                setOperatorComments(e.target.value);
+                setIsCommentsDirty(true);
+              }}
+              onBlur={handleCommentsBlur}
+              disabled={(job.status === 'terminado') || disableAllControls}
+              variant="standard"
+              size="small"
+          />
         </Stack>
       </Paper>
-
-      <Grid container spacing={4}>
-        {/* Puesta a Punto */}
-        <Grid item xs={12}>
-          <Card sx={{ height: '100%' }}>
+      <Divider sx={{ my: 0 }} />
+      <Grid container spacing={4} sx={{ maxWidth: '100%', mx: 'auto', mt: 2 }}>
+        <Grid item xs={12} md={6} width={'45%'}>
+          <Card sx={{ height: '100%' }} elevation={0}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Box>
                 <Typography variant="h5" component="h2" gutterBottom>
                   Puesta a Punto
                 </Typography>
-                <OperatorChronometer running={isPuestaPunto} variant="h5" />
               </Box>
               <Stack direction="row" spacing={2} sx={{ mt: 2 }} justifyContent="center">
                 <Button
                   variant="outlined"
-                  onClick={() => setIsPuestaPunto(true)}
-                  disabled={!isTirajeActive || isPuestaPunto || isPaused}
+                  onClick={handleStartPuestaPunto}
+                  disabled={!isTirajeActive || isPuestaPunto || isPaused || (job.status === 'terminado') || disableAllControls}
                 >
-                  Iniciar Puesta a Punto
+                  Iniciar
                 </Button>
+                <OperatorChronometer
+                  running={isPuestaPunto && !isPaused && (job.status !== 'terminado') && !disableAllControls}
+                  initialElapsedTime={job.totalSetupTime || 0}
+                  reset={resetSetupChronometer}
+                  onReset={handleResetSetupChronometer}
+                />
                 <Button
                   variant="outlined"
                   color="secondary"
-                  onClick={() => setIsPuestaPunto(false)}
-                  disabled={!isPuestaPunto || isPaused}
+                  onClick={handleEndPuestaPunto}
+                  disabled={!isPuestaPunto || isPaused || (job.status === 'terminado') || disableAllControls}
                 >
-                  Finalizar Puesta a Punto
+                  Finalizar
                 </Button>
               </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Registros de Pausas */}
-        <Grid item xs={12}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h5" component="h2" gutterBottom>
-                Registros de Pausas
-              </Typography>
-              <FormControl fullWidth sx={{ mt: 2 }} disabled={!isTirajeActive || isPaused}>
-                <InputLabel id="parada-select-label">Causa de la Pausa</InputLabel>
-                <Select
-                  labelId="parada-select-label"
-                  value={paradaCause}
-                  label="Causa de la Pausa"
-                  onChange={(e) => setParadaCause(e.target.value)}
-                >
-                  <MenuItem value=""><em>Seleccione una causa</em></MenuItem>
-                  <MenuItem value={"cambio_plancha"}>Cambio de Plancha</MenuItem>
-                  <MenuItem value={"falta_papel"}>Falta de Papel</MenuItem>
-                  <MenuItem value={"ajuste_color"}>Ajuste de Color</MenuItem>
-                  <MenuItem value={"limpieza"}>Limpieza</MenuItem>
-                  <MenuItem value={"otro"}>Otro</MenuItem>
-                </Select>
-              </FormControl>
-              <Button
-                variant="contained"
-                sx={{ mt: 2, mb: 2 }}
-                onClick={handleStop}
-                disabled={!isTirajeActive || !paradaCause || isPaused}
-                fullWidth
-              >
-                Registrar y Pausar
-              </Button>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" gutterBottom>Historial de Pausas</Typography>
-              <Box sx={{ maxHeight: 150, overflow: 'auto' }}>
-                {stopsHistory.length > 0 ? (
+              <Box sx={{ mt: 1, textAlign: 'center' }}>
+                <Typography variant="subtitle1" component="h3" gutterBottom>
+                  Historial de Puesta a Punto
+                </Typography>
+                <Paper elevation={0} sx={{ p: 1, display: 'inline-block' }}>
                   <List dense>
-                    {stopsHistory.map((stop, index) => (
-                      <ListItem key={index}>
-                        <ListItemText
-                          primary={stop.cause.replace(/_/g, ' ')}
-                          secondary={stop.timestamp.toLocaleTimeString()}
-                        />
+                    {puestaPuntoHistory.length > 0 ? (
+                      puestaPuntoHistory.map((entry, index) => (
+                        <ListItem key={index} disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
+                          <ListItemText
+                            primary={`${entry.start ? entry.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'N/A'} - ${entry.end ? entry.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit'}) : 'En curso'}`}
+                          />
+                        </ListItem>
+                      ))
+                    ) : (
+                      <ListItem disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
+                        <ListItemText primary="No hay registros de puesta a punto." />
                       </ListItem>
-                    ))}
+                    )}
                   </List>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
-                    Aún no hay pausas registradas.
-                  </Typography>
-                )}
+                </Paper>
               </Box>
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+              
+                      <Grid item xs={12} md={6} width={'50%'}>
+                        <Card sx={{ height: '100%'}} elevation={0}>
+                          <CardContent sx={{ textAlign: 'center' }}>
+                            <Typography variant="h5" component="h2" gutterBottom align="center">
+                              Pausas
+                            </                              Typography>
+                            <Stack width={'90%'} direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center" justifyContent="center">
+                              <FormControl sx={{ width: '60%' }} disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}>
+                                <InputLabel size='small' id="parada-select-label">Causa de la Pausa</InputLabel>
+                                <Select size='small'
+                                  labelId="parada-select-label"
+                                  id="causa-pausa-select"
+                                  name="causa-pausa"
+                                  value={paradaCause}
+                                  label="Causa de la Pausa"
+                                  onChange={(e) => setParadaCause(e.target.value)}
+                                  disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}
+                                >
+                                  <MenuItem value=""><em>Seleccione una causa</em></MenuItem>
+                                  {pauseCauses.map((cause) => (
+                                    <MenuItem key={cause._id} value={cause.name}>{cause.name}</MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                              <Button
+                                variant="contained"
+                                onClick={handleStop}
+                                disabled={!isTirajeActive || !paradaCause || isPaused || (job.status === 'terminado') || disableAllControls}
+                              >
+                                Pausar
+                              </Button>
+                            </Stack>
+                            <Box sx={{ mt: 2, textAlign: 'center' }}>
+                              <Typography variant="subtitle1" component="h3" gutterBottom>
+                                Historial de Pausas
+                              </Typography>
+                              <Paper elevation={0} sx={{ p: 1, display: 'inline-block' }}>
+                                <List dense>
+                                  {pauseHistory.length > 0 ? (
+                                    pauseHistory.map((entry, index) => (
+                                      <ListItem key={index} disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
+                                          <ListItemText
+                                            primary={
+                                              <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                                                <Typography variant="body2">
+                                                  {`${entry.start ? entry.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'N/A'} - ${entry.end ? entry.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'En curso'}`}
+                                                </Typography>
+                                                {entry.cause && <Chip label={entry.cause} size="small" />}
+                                              </Stack>
+                                            }
+                                          />
+                                      </ListItem>
+                                    ))
+                                  ) : (
+                                    <ListItem disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
+                                      <ListItemText primary="No hay registros de pausas." />
+                                    </ListItem>
+                                  )}
+                                </List>
+                              </Paper>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </Grid>        <ConfirmationDialog
+        open={openConfirmation}
+        onClose={handleCloseConfirmation}
+        onConfirm={handleConfirmFinish}
+        title="Confirmar Finalización"
+        description="¿Está seguro de que desea finalizar la orden de trabajo? Una vez finalizada, no podrá editarla."
+      />
+      <ConfirmationDialog
+        open={openGeneralPauseConfirmation}
+        onClose={() => setOpenGeneralPauseConfirmation(false)}
+        onConfirm={handleConfirmGeneralPause}
+        title="Confirmar Pausa General"
+        description="Esto registrará una pausa sin una causa específica. ¿Desea continuar?"
+      />
     </Box>
   );
 }
