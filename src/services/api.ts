@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000', // El backend corre en el puerto 3000
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
 });
 
 // Interceptor para añadir el token a todas las peticiones
