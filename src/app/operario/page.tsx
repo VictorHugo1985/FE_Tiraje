@@ -119,7 +119,7 @@ export default function OperarioPage() {
             <Grid container spacing={3} sx={{ mt: 2 }}>
               {filteredJobs.length > 0 ? (
                 filteredJobs.map((job: Job) => (
-                  <Grid item xs={12} md={6} lg={4} key={job._id} component="div">
+                  <Grid item xs={12} md={6} lg={4} key={job._id}>
                     <CardActionArea 
                       onClick={() => handleSelectJob(job)} 
                       disabled={hasActiveJobInPress && !['en_curso', 'en_pausa'].includes(job.status)}
@@ -130,7 +130,7 @@ export default function OperarioPage() {
                 ))
               ) : (
                 selectedPress && !loading && (
-                    <Grid item xs={12} component="div">
+                    <Grid item xs={12}>
                         <Typography variant="body1" align="center" color="text.secondary">
                             No hay Ordenes de Trabajo para {selectedPress}.
                         </Typography>
