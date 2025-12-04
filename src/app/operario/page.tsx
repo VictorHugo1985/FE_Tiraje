@@ -1,8 +1,10 @@
 // src/app/operario/page.tsx
+// Force recompilation of this file
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Container, Grid, CardActionArea, Button, Stack, CircularProgress } from '@mui/material';
+import { Box, Typography, Container, CardActionArea, Button, Stack, CircularProgress, Grid as MuiGrid } from '@mui/material';
+
 import OperatorControlPanel from '../../components/OperatorControlPanel';
 import JobCard from '../../components/JobCard';
 import { getJobs, getJobById, Job } from '../../services/api'; // Import Job type and getJobById
@@ -116,28 +118,28 @@ export default function OperarioPage() {
         </Typography>
 
         {loading ? <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress /></Box> : (
-            <Grid container spacing={3} sx={{ mt: 2 }}>
+            <Stack direction="row" flexWrap="wrap" spacing={2} useFlexGap sx={{ mt: 2 }}>
               {filteredJobs.length > 0 ? (
                 filteredJobs.map((job: Job) => (
-                  <Grid item xs={12} md={6} lg={4} key={job._id}>
+                  <Box key={job._id} sx={{ width: { xs: '100%', md: 'calc(50% - 8px)', lg: 'calc(33.333% - 10.666px)' } }}>
                     <CardActionArea 
                       onClick={() => handleSelectJob(job)} 
                       disabled={hasActiveJobInPress && !['en_curso', 'en_pausa'].includes(job.status)}
                     >
                       <JobCard job={job} cardBackgroundColor={selectedPressColor} />
                     </CardActionArea>
-                  </Grid>
+                  </Box>
                 ))
               ) : (
                 selectedPress && !loading && (
-                    <Grid item xs={12}>
+                    <Box sx={{ width: '100%' }}>
                         <Typography variant="body1" align="center" color="text.secondary">
                             No hay Ordenes de Trabajo para {selectedPress}.
                         </Typography>
-                    </Grid>
+                    </Box>
                 )
               )}
-            </Grid>
+            </Stack>
         )}
       </Box>
     </Container>

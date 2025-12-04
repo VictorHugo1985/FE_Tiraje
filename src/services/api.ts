@@ -28,6 +28,7 @@ export const login = async (credentials: { employeeId: string; password: string 
 
 
 // --- INTERFACES ---
+// Force recompilation
 export interface Job {
   _id: string;
   ot: string;
@@ -39,7 +40,7 @@ export interface Job {
   checklist: {
     pantone: boolean;
     barniz: boolean;
-    colors: '4x0' | '4x4' | 'none';
+    colors: "4x0" | "4x4" | "none";
   };
   isCancelled: boolean;
   createdAt: Date;
@@ -68,7 +69,7 @@ const toBackendJob = (job: any) => {
 
 const toFrontendJob = (job: any): Job => {
     const { _id, ot, client, jobType, quantityPlanned, comments, press, priority, status, pantone, barniz, is4x0, is4x4, createdAt, updatedAt, setupCount, totalSetupTime, pauseCount, totalPauseTime, timeline } = job;
-    let colors = 'none';
+    let colors: "4x0" | "4x4" | "none" = 'none';
     if (is4x0) colors = '4x0';
     if (is4x4) colors = '4x4';
     let feStatus: 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado' = 'en_cola';

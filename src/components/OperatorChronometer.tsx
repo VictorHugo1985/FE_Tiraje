@@ -33,7 +33,7 @@ export default function OperatorChronometer({
   onReset,
 }: ChronometerProps) {
   const [elapsedTime, setElapsedTime] = useState(initialElapsedTime);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | null>(null);
   const lastUpdateTimeRef = useRef<number>(0);
 
   // Effect to synchronize with the initial time from props when the timer is not running.

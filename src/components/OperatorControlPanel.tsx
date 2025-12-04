@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Typography,
-  Grid,
   Card,
   CardContent,
   Stack,
@@ -21,7 +20,7 @@ import {
   Divider,
   Fab,
   TextField,
-  Chip, // Import Chip
+  Chip // Import Chip
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -193,9 +192,29 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
     });
 
     // Determine current active states
-    currentIsJobStarted = lastProductionStart && (!lastProductionEnd || lastProductionStart.getTime() > lastProductionEnd.getTime());
-    currentIsPaused = lastPauseStart && (!lastPauseEnd || lastPauseStart.getTime() > lastPauseEnd.getTime());
-    currentIsPuestaPunto = lastSetupStart && (!lastSetupEnd || lastSetupStart.getTime() > lastSetupEnd.getTime());
+    if (lastProductionStart && lastProductionEnd) {
+      currentIsJobStarted = (lastProductionStart as Date).getTime() > (lastProductionEnd as Date).getTime();
+    } else if (lastProductionStart && !lastProductionEnd) {
+      currentIsJobStarted = true;
+    } else {
+      currentIsJobStarted = false;
+    }
+
+    if (lastPauseStart && lastPauseEnd) {
+      currentIsPaused = (lastPauseStart as Date).getTime() > (lastPauseEnd as Date).getTime();
+    } else if (lastPauseStart && !lastPauseEnd) {
+      currentIsPaused = true;
+    } else {
+      currentIsPaused = false;
+    }
+
+    if (lastSetupStart && lastSetupEnd) {
+      currentIsPuestaPunto = (lastSetupStart as Date).getTime() > (lastSetupEnd as Date).getTime();
+    } else if (lastSetupStart && !lastSetupEnd) {
+      currentIsPuestaPunto = true;
+    } else {
+      currentIsPuestaPunto = false;
+    }
 
     // Calculate initial chronometer time
     let totalProductionDuration = 0;
@@ -247,12 +266,16 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
   };
   
   const handleStartJob = async () => {
+    if (!user) {
+      console.error("Cannot start job, user is not authenticated.");
+      return;
+    }
     try {
       await updateJob(job._id, {
         status: 'en_curso',
         operatorComments,
         machineSpeed: velocidadConfigurada,
-        startedByUserId: user.userId // Capture the user ID here
+        startedByUserId: user.id // Capture the user ID here
       });
       await handleTimelineEvent(TimelineEventType.PRODUCTION_START);
     } catch (error) {
@@ -385,8 +408,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
         <Divider sx={{ my: 2 }} />
       </Typography>
 
-      <Grid container spacing={2} justifyContent="center" sx={{ mb: 2 }}>
-        <Grid item xs={12} sm={6}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', mb: 2 }}>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)' } }}>
           <TextField
             id="machine-speed-input"
             inputRef={speedRef}
@@ -402,8 +425,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
             fullWidth
             size="small"
           />
-        </Grid>
-        <Grid item xs={12} sm={6}>
+        </Box>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)' } }}>
           <TextField
             label="Cantidad de Tiraje"
             value={job.quantityPlanned || 'N/A'}
@@ -412,8 +435,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
             size="small"
             InputProps={{ readOnly: true }}
           />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       <Paper elevation={0} sx={{ p: 0, my: 4, position: 'relative' }}>
         <Typography variant="h4" align="center" gutterBottom>Tiempo de Tiraje</Typography>
@@ -477,8 +500,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
         </Stack>
       </Paper>
       <Divider sx={{ my: 0 }} />
-      <Grid container spacing={4} sx={{ maxWidth: '100%', mx: 'auto', mt: 2 }}>
-        <Grid item xs={12} md={6} width={'45%'}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: '100%', mx: 'auto', mt: 2 }}>
+        <Box sx={{ width: { xs: '100%', md: '45%' } }}>
           <Card sx={{ height: '100%' }} elevation={0}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Box>
@@ -533,73 +556,73 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
               
-                      <Grid item xs={12} md={6} width={'50%'}>
-                        <Card sx={{ height: '100%'}} elevation={0}>
-                          <CardContent sx={{ textAlign: 'center' }}>
-                            <Typography variant="h5" component="h2" gutterBottom align="center">
-                              Pausas
-                            </                              Typography>
-                            <Stack width={'90%'} direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center" justifyContent="center">
-                              <FormControl sx={{ width: '60%' }} disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}>
-                                <InputLabel size='small' id="parada-select-label">Causa de la Pausa</InputLabel>
-                                <Select size='small'
-                                  labelId="parada-select-label"
-                                  id="causa-pausa-select"
-                                  name="causa-pausa"
-                                  value={paradaCause}
-                                  label="Causa de la Pausa"
-                                  onChange={(e) => setParadaCause(e.target.value)}
-                                  disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}
-                                >
-                                  <MenuItem value=""><em>Seleccione una causa</em></MenuItem>
-                                  {pauseCauses.map((cause) => (
-                                    <MenuItem key={cause._id} value={cause.name}>{cause.name}</MenuItem>
-                                  ))}
-                                </Select>
-                              </FormControl>
-                              <Button
-                                variant="contained"
-                                onClick={handleStop}
-                                disabled={!isTirajeActive || !paradaCause || isPaused || (job.status === 'terminado') || disableAllControls}
-                              >
-                                Pausar
-                              </Button>
-                            </Stack>
-                            <Box sx={{ mt: 2, textAlign: 'center' }}>
-                              <Typography variant="subtitle1" component="h3" gutterBottom>
-                                Historial de Pausas
-                              </Typography>
-                              <Paper elevation={0} sx={{ p: 1, display: 'inline-block' }}>
-                                <List dense>
-                                  {pauseHistory.length > 0 ? (
-                                    pauseHistory.map((entry, index) => (
-                                      <ListItem key={index} disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
-                                          <ListItemText
-                                            primary={
-                                              <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                                                <Typography variant="body2">
-                                                  {`${entry.start ? entry.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'N/A'} - ${entry.end ? entry.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'En curso'}`}
-                                                </Typography>
-                                                {entry.cause && <Chip label={entry.cause} size="small" />}
-                                              </Stack>
-                                            }
-                                          />
-                                      </ListItem>
-                                    ))
-                                  ) : (
-                                    <ListItem disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
-                                      <ListItemText primary="No hay registros de pausas." />
-                                    </ListItem>
-                                  )}
-                                </List>
-                              </Paper>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    </Grid>        <ConfirmationDialog
+        <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+          <Card sx={{ height: '100%'}} elevation={0}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography variant="h5" component="h2" gutterBottom align="center">
+                Pausas
+              </Typography>
+              <Stack width={'90%'} direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center" justifyContent="center">
+                <FormControl sx={{ width: '60%' }} disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}>
+                  <InputLabel size='small' id="parada-select-label">Causa de la Pausa</InputLabel>
+                  <Select size='small'
+                    labelId="parada-select-label"
+                    id="causa-pausa-select"
+                    name="causa-pausa"
+                    value={paradaCause}
+                    label="Causa de la Pausa"
+                    onChange={(e) => setParadaCause(e.target.value)}
+                    disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}
+                  >
+                    <MenuItem value=""><em>Seleccione una causa</em></MenuItem>
+                    {pauseCauses.map((cause) => (
+                      <MenuItem key={cause._id} value={cause.name}>{cause.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="contained"
+                  onClick={handleStop}
+                  disabled={!isTirajeActive || !paradaCause || isPaused || (job.status === 'terminado') || disableAllControls}
+                >
+                  Pausar
+                </Button>
+              </Stack>
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Typography variant="subtitle1" component="h3" gutterBottom>
+                  Historial de Pausas
+                </Typography>
+                <Paper elevation={0} sx={{ p: 1, display: 'inline-block' }}>
+                  <List dense>
+                    {pauseHistory.length > 0 ? (
+                      pauseHistory.map((entry, index) => (
+                        <ListItem key={index} disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
+                            <ListItemText
+                              primary={
+                                <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                                  <Typography variant="body2">
+                                    {`${entry.start ? entry.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'N/A'} - ${entry.end ? entry.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'En curso'}`}
+                                  </Typography>
+                                  {entry.cause && <Chip label={entry.cause} size="small" />}
+                                </Stack>
+                              }
+                            />
+                        </ListItem>
+                      ))
+                    ) : (
+                      <ListItem disableGutters sx={{ py: 0.5, textAlign: 'center' }}>
+                        <ListItemText primary="No hay registros de pausas." />
+                      </ListItem>
+                    )}
+                  </List>
+                </Paper>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>        <ConfirmationDialog
         open={openConfirmation}
         onClose={handleCloseConfirmation}
         onConfirm={handleConfirmFinish}

@@ -23,7 +23,7 @@ interface JobCardProps {
     checklist: {
       pantone: boolean;
       barniz: boolean;
-      colors: '4x0' | '4x4' | 'none';
+      colors: string;
     };
     isCancelled: boolean;
     createdAt: Date;
@@ -37,7 +37,7 @@ interface JobCardProps {
   onEdit?: (job: any) => void;
   onCancel?: (job: any) => void;
   onReestablish?: (job: any) => void; // New prop for re-establishing
-  cardBackgroundColor?: string; // New prop for dynamic background color
+  cardBackgroundColor?: string | null; // New prop for dynamic background color
 }
 
 const statusMap = {
