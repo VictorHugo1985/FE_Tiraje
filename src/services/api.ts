@@ -27,6 +27,32 @@ export const login = async (credentials: { employeeId: string; password: string 
 };
 
 
+// --- INTERFACES ---
+export interface Job {
+  _id: string;
+  ot: string;
+  press: string;
+  client: string;
+  status: 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado';
+  jobType: string;
+  quantityPlanned: string;
+  checklist: {
+    pantone: boolean;
+    barniz: boolean;
+    colors: '4x0' | '4x4' | 'none';
+  };
+  isCancelled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  finishedAt: Date | null;
+  timeline?: any[];
+  operatorComments?: string;
+  machineSpeed?: string;
+  totalPauseTime?: number;
+  setupCount?: number;
+  pauseCount?: number;
+}
+
 // --- MAPPERS ---
 const toBackendJob = (job: any) => {
     const { ot, client, jobType, quantityPlanned, comments, press, priority, status, checklist, isCancelled } = job;
@@ -40,22 +66,26 @@ const toBackendJob = (job: any) => {
     };
 };
 
-const toFrontendJob = (job: any) => {
+const toFrontendJob = (job: any): Job => {
     const { _id, ot, client, jobType, quantityPlanned, comments, press, priority, status, pantone, barniz, is4x0, is4x4, createdAt, updatedAt, setupCount, totalSetupTime, pauseCount, totalPauseTime, timeline } = job;
     let colors = 'none';
     if (is4x0) colors = '4x0';
     if (is4x4) colors = '4x4';
-    let feStatus = status ? status.replace(' ', '_') : 'en_cola';
-    if (feStatus === 'pausado') feStatus = 'en_pausa';
+    let feStatus: 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado' = 'en_cola';
+    const parsedStatus = status ? status.replace(' ', '_') : 'en_cola';
+    if (['en_curso', 'en_pausa', 'en_cola', 'terminado'].includes(parsedStatus)) {
+      feStatus = parsedStatus as 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado';
+    }
+    
     return {
         _id, ot, client, jobType, quantityPlanned: String(quantityPlanned),
-        comments, press, priority, status: feStatus,
+        press, status: feStatus,
         checklist: { pantone, barniz, colors }, isCancelled: status === 'cancelado',
         createdAt: createdAt ? new Date(createdAt) : new Date(),
         updatedAt: updatedAt ? new Date(updatedAt) : new Date(),
         finishedAt: status === 'terminado' ? new Date(updatedAt) : null,
-        setupCount: setupCount || 0, totalSetupTime: totalSetupTime || 0,
-        pauseCount: pauseCount || 0, totalPauseTime: totalPauseTime || 0,
+        setupCount: setupCount || 0, totalPauseTime: totalSetupTime || 0,
+        pauseCount: pauseCount || 0,
         machineSpeed: job.machineSpeed || '',
         operatorComments: job.operatorComments || '',
         timeline: timeline || [],
@@ -73,7 +103,7 @@ export enum TimelineEventType {
     PAUSE_END = 'pause_end',
 }
 
-export const getJobs = async (filters: { status?: string, press?: string } = {}) => {
+export const getJobs = async (filters: { status?: string, press?: string } = {}): Promise<Job[]> => {
     const { data } = await api.get('/jobs', { params: filters });
     return data.map(toFrontendJob);
 };
@@ -131,7 +161,7 @@ export const getPauseCauses = async () => {
     return data;
 };
 
-export const getJobById = async (id: string) => {
+export const getJobById = async (id: string): Promise<Job> => {
     const { data } = await api.get(`/jobs/${id}`);
     return toFrontendJob(data);
 };

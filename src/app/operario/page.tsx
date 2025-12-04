@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Container, Grid, CardActionArea, Button, Stack, CircularProgress } from '@mui/material';
 import OperatorControlPanel from '../../components/OperatorControlPanel';
 import JobCard from '../../components/JobCard';
-import { getJobs, getJobById } from '../../services/api'; // Import getJobById
+import { getJobs, getJobById, Job } from '../../services/api'; // Import Job type and getJobById
 
 // Define press options with associated colors
 const pressOptions = [
@@ -15,10 +15,10 @@ const pressOptions = [
 ];
 
 export default function OperarioPage() {
-  const [allJobs, setAllJobs] = useState<any[]>([]); // Store all fetched jobs
-  const [filteredJobs, setFilteredJobs] = useState<any[]>([]); // Jobs to display based on selection
+  const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all fetched jobs
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]); // Jobs to display based on selection
   const [loading, setLoading] = useState(true);
-  const [activeJob, setActiveJob] = useState<any | null>(null);
+  const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [selectedPress, setSelectedPress] = useState<string | null>(null);
   const [selectedPressColor, setSelectedPressColor] = useState<string | null>(null);
 
@@ -26,12 +26,12 @@ export default function OperarioPage() {
     try {
       setLoading(true);
       const fetched = await getJobs();
-      const operatorRelevantJobs = fetched.filter(j => ['en_cola', 'en_curso', 'en_pausa'].includes(j.status));
+      const operatorRelevantJobs = fetched.filter((j: Job) => ['en_cola', 'en_curso', 'en_pausa'].includes(j.status));
       setAllJobs(operatorRelevantJobs);
 
       // Re-apply filter if a press is already selected
       if (selectedPress) {
-        setFilteredJobs(operatorRelevantJobs.filter(j => j.press === selectedPress));
+        setFilteredJobs(operatorRelevantJobs.filter((j: Job) => j.press === selectedPress));
       } else {
         setFilteredJobs([]); // No press selected, no jobs shown initially
       }
@@ -60,10 +60,10 @@ export default function OperarioPage() {
   const handleSelectPress = (pressValue: string, lightColor: string) => {
     setSelectedPress(pressValue);
     setSelectedPressColor(lightColor);
-    setFilteredJobs(allJobs.filter(j => j.press === pressValue));
+    setFilteredJobs(allJobs.filter((j: Job) => j.press === pressValue));
   };
 
-  const handleSelectJob = (job: any) => {
+  const handleSelectJob = (job: Job) => {
     setActiveJob(job);
   };
 
