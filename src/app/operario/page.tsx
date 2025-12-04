@@ -89,7 +89,7 @@ export default function OperarioPage() {
     );
   }
 
-  const hasActiveJobInPress = filteredJobs.some(j => ['en_curso', 'en_pausa'].includes(j.status));
+  const hasActiveJobInPress = filteredJobs.some((j: Job) => ['en_curso', 'en_pausa'].includes(j.status));
 
   return (
     <Container maxWidth="xl">
@@ -118,8 +118,8 @@ export default function OperarioPage() {
         {loading ? <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress /></Box> : (
             <Grid container spacing={3} sx={{ mt: 2 }}>
               {filteredJobs.length > 0 ? (
-                filteredJobs.map((job) => (
-                  <Grid item xs={12} md={6} lg={4} key={job._id}>
+                filteredJobs.map((job: Job) => (
+                  <Grid item xs={12} md={6} lg={4} key={job._id} component="div">
                     <CardActionArea 
                       onClick={() => handleSelectJob(job)} 
                       disabled={hasActiveJobInPress && !['en_curso', 'en_pausa'].includes(job.status)}
@@ -130,7 +130,7 @@ export default function OperarioPage() {
                 ))
               ) : (
                 selectedPress && !loading && (
-                    <Grid item xs={12}>
+                    <Grid item xs={12} component="div">
                         <Typography variant="body1" align="center" color="text.secondary">
                             No hay Ordenes de Trabajo para {selectedPress}.
                         </Typography>
