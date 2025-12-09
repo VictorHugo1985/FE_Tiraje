@@ -34,7 +34,7 @@ export interface Job {
   ot: string;
   press: string;
   client: string;
-  status: 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado';
+  status: 'en_curso' | 'pausado' | 'en_cola' | 'terminado' | 'cancelado';
   jobType: string;
   quantityPlanned: string;
   checklist: {
@@ -46,6 +46,7 @@ export interface Job {
   createdAt: Date;
   updatedAt: Date;
   finishedAt: Date | null;
+  priority: number;
   timeline?: any[];
   operatorComments?: string;
   machineSpeed?: string;
@@ -57,10 +58,16 @@ export interface Job {
 // --- MAPPERS ---
 const toBackendJob = (job: any) => {
     const { ot, client, jobType, quantityPlanned, comments, press, priority, status, checklist, isCancelled } = job;
-    let backendStatus = 'en cola';
-    if (isCancelled) backendStatus = 'cancelado';
-    else if (status) backendStatus = status.replace('_', ' ');
-    return {
+            let backendStatus = 'en cola';
+            if (isCancelled) backendStatus = 'cancelado';
+            else if (status) {
+                // Map frontend status (with underscores or 'pausado') to backend status (with spaces or 'pausado')
+                if (status === 'en_curso') backendStatus = 'en curso';
+                else if (status === 'pausado') backendStatus = 'pausado';
+                else if (status === 'en_cola') backendStatus = 'en cola';
+                else if (status === 'terminado') backendStatus = 'terminado';
+                else if (status === 'cancelado') backendStatus = 'cancelado';
+            }    return {
         ot, client, jobType, quantityPlanned: Number(quantityPlanned) || 0, comments, press, priority, status: backendStatus,
         pantone: checklist?.pantone || false, barniz: checklist?.barniz || false,
         is4x0: checklist?.colors === '4x0', is4x4: checklist?.colors === '4x4',
@@ -68,28 +75,48 @@ const toBackendJob = (job: any) => {
 };
 
 const toFrontendJob = (job: any): Job => {
-    const { _id, ot, client, jobType, quantityPlanned, comments, press, priority, status, pantone, barniz, is4x0, is4x4, createdAt, updatedAt, setupCount, totalSetupTime, pauseCount, totalPauseTime, timeline } = job;
-    let colors: "4x0" | "4x4" | "none" = 'none';
-    if (is4x0) colors = '4x0';
-    if (is4x4) colors = '4x4';
-    let feStatus: 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado' = 'en_cola';
-    const parsedStatus = status ? status.replace(' ', '_') : 'en_cola';
-    if (['en_curso', 'en_pausa', 'en_cola', 'terminado'].includes(parsedStatus)) {
-      feStatus = parsedStatus as 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado';
-    }
-    
+    const colorValue: "4x0" | "4x4" | "none" = job.is4x0 ? '4x0' : job.is4x4 ? '4x4' : 'none';
+
+    let feStatus: 'en_curso' | 'pausado' | 'en_cola' | 'terminado' | 'cancelado' = 'en_cola';
+    const parsedStatus = String(job.status); // Backend status is already correct ('en cola', 'pausado', etc.)
+
+            // Mapping to frontend-friendly underscored if needed, but not for 'pausado'
+            if (parsedStatus === 'en curso') {
+                feStatus = 'en_curso';
+            } else if (parsedStatus === 'pausado') {
+                feStatus = 'pausado';
+            } else if (parsedStatus === 'en cola') {
+                feStatus = 'en_cola';
+            } else if (parsedStatus === 'terminado') {
+                feStatus = 'terminado';
+            } else if (parsedStatus === 'cancelado') {
+                feStatus = 'cancelado';
+            }
+            // Default to 'en_cola' if status is unknown or not provided
     return {
-        _id, ot, client, jobType, quantityPlanned: String(quantityPlanned),
-        press, status: feStatus,
-        checklist: { pantone, barniz, colors }, isCancelled: status === 'cancelado',
-        createdAt: createdAt ? new Date(createdAt) : new Date(),
-        updatedAt: updatedAt ? new Date(updatedAt) : new Date(),
-        finishedAt: status === 'terminado' ? new Date(updatedAt) : null,
-        setupCount: setupCount || 0, totalPauseTime: totalSetupTime || 0,
-        pauseCount: pauseCount || 0,
+        _id: job._id,
+        ot: job.ot,
+        client: job.client,
+        jobType: job.jobType,
+        quantityPlanned: String(job.quantityPlanned),
+        press: job.press,
+        priority: job.priority || 0,
+        status: feStatus,
+        checklist: {
+            pantone: !!job.pantone,
+            barniz: !!job.barniz,
+            colors: colorValue,
+        },
+        isCancelled: job.status === 'cancelado',
+        createdAt: job.createdAt ? new Date(job.createdAt) : new Date(),
+        updatedAt: job.updatedAt ? new Date(job.updatedAt) : new Date(),
+        finishedAt: job.status === 'terminado' && job.updatedAt ? new Date(job.updatedAt) : null,
+        setupCount: job.setupCount || 0,
+        totalPauseTime: job.totalPauseTime || 0,
+        pauseCount: job.pauseCount || 0,
         machineSpeed: job.machineSpeed || '',
         operatorComments: job.operatorComments || '',
-        timeline: timeline || [],
+        timeline: job.timeline || [],
     };
 };
 
@@ -130,7 +157,16 @@ export const updateJob = async (id: string, jobUpdate: any) => {
     if (jobUpdate.comments !== undefined) payload.comments = jobUpdate.comments;
     if (jobUpdate.press !== undefined) payload.press = jobUpdate.press;
     if (jobUpdate.priority !== undefined) payload.priority = jobUpdate.priority;
-    if (jobUpdate.status !== undefined) payload.status = jobUpdate.status.replace('_', ' ');
+    if (jobUpdate.status !== undefined) {
+        // Now, jobUpdate.status should already be the frontend status ('en_curso', 'pausado', etc.)
+        // We need to convert it to the backend's expected format ('en curso', 'pausado', etc.)
+        let backendStatus = jobUpdate.status;
+        if (jobUpdate.status === 'en_curso') backendStatus = 'en curso';
+        else if (jobUpdate.status === 'en_cola') backendStatus = 'en cola';
+        // 'pausado', 'terminado', 'cancelado' are the same for frontend and backend
+        
+        payload.status = backendStatus;
+    }
     if (jobUpdate.checklist?.pantone !== undefined) payload.pantone = jobUpdate.checklist.pantone;
     if (jobUpdate.checklist?.barniz !== undefined) payload.barniz = jobUpdate.checklist.barniz;
     if (jobUpdate.checklist?.colors !== undefined) {
@@ -142,7 +178,13 @@ export const updateJob = async (id: string, jobUpdate: any) => {
         const { data } = await api.patch(`/jobs/${id}`, payload);
         return toFrontendJob(data);
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || 'Failed to update job');
+        let errorMessage = 'Failed to update job';
+        if (axios.isAxiosError(error) && error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        } else if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        throw new Error(errorMessage);
     }
 };
 

@@ -17,27 +17,42 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { JobColumn } from '../../components/JobColumn';
 import JobEditor from '../../components/JobEditor';
-import { getJobs, createJob, updateJob } from '../../services/api';
+import { getJobs, createJob, updateJob, Job } from '../../services/api';
+
+const customJobSorter = (a: Job, b: Job) => {
+  const statusOrder: Record<string, number> = { 'en_curso': 1, 'pausado': 2, 'en_cola': 3 };
+  const statusA = statusOrder[a.status] || 99;
+  const statusB = statusOrder[b.status] || 99;
+
+  if (statusA !== statusB) {
+    return statusA - statusB;
+  }
+  // If statuses are the same, sort by priority
+  if (a.status === b.status) {
+    return a.priority - b.priority;
+  }
+  return 0;
+};
 
 // Helper to group jobs by press
-const groupJobsByPress = (jobs: any[], presses: string[]) => {
-  const grouped: { [key: string]: any[] } = {};
+const groupJobsByPress = (jobs: Job[], presses: string[]) => {
+  const grouped: { [key: string]: Job[] } = {};
   presses.forEach(press => {
-    grouped[press] = jobs.filter(job => job.press === press).sort((a, b) => a.priority - b.priority);
+    grouped[press] = jobs.filter(job => job.press === press).sort(customJobSorter);
   });
   return grouped;
 };
 
-const defaultChecklist = { pantone: false, barniz: false, colors: 'none' };
+const defaultChecklist = { pantone: false, barniz: false, colors: 'none' as "4x0" | "4x4" | "none" };
 
 const pressColumns = ['Prensa 102', 'Prensa 74', 'Prensa 52'];
 
 export default function SupervisorPage() {
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeJob, setActiveJob] = useState<any | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingJob, setEditingJob] = useState<any | null>(null);
+  const [editingJob, setEditingJob] = useState<Partial<Job> | null>(null);
   const [showFinishedJobs, setShowFinishedJobs] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -75,21 +90,12 @@ export default function SupervisorPage() {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    const job = jobs.find(j => j.ot === active.id as string);
-    // Prevent dragging active/paused jobs to different presses
-    if (job && (job.status === 'en_curso' || job.status === 'en_pausa')) {
-        // Optionally, provide visual feedback here that it's not draggable to another press
-        console.log(`Job ${job.ot} is ${job.status} and cannot be moved to a different press.`);
-        setActiveJob(null); // Do not set activeJob if it's not truly draggable across presses
-        return;
-    }
-    setActiveJob(job || null);
+    setActiveId(event.active.id as string);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
-    if (!over || !activeJob) return; // Also check activeJob to ensure a valid drag operation started
+    if (!over || active.id === over.id) return;
   
     const activeId = active.id as string;
     const overId = over.id as string;
@@ -97,23 +103,29 @@ export default function SupervisorPage() {
     const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId);
   
-    if (!activeContainer || !overContainer || activeContainer === overContainer) {
+    if (!activeContainer || !overContainer || activeContainer !== overContainer) {
       return;
-    }
-
-    // Business Rule: OT in 'en_curso' or 'en_pausa' cannot change press
-    if (activeJob.status === 'en_curso' || activeJob.status === 'en_pausa') {
-        // Here, we effectively stop the visual drag to another container if it's an active job
-        // This is mainly for visual feedback during dragOver. The main enforcement is in DragEnd.
-        return;
     }
 
     setJobs(prevJobs => {
         const activeIndex = prevJobs.findIndex(j => j.ot === activeId);
         if (activeIndex !== -1) {
             const updatedJobs = [...prevJobs];
-            updatedJobs[activeIndex] = { ...updatedJobs[activeIndex], press: overContainer };
-            return updatedJobs;
+            const activeJob = updatedJobs[activeIndex];
+            
+            // Allow reordering within the same column if the job is 'en_cola'
+            // or if it's an 'en_curso' or 'en_pausa' job trying to stay in its column
+            if (activeJob.press === overContainer && (activeJob.status === 'en_cola' || ['en_curso', 'pausado'].includes(activeJob.status))) {
+                // Check if the target press already has an active/paused job
+                // This logic is mostly for preventing drops, but keeping it here for consistency
+                const targetHasActive = prevJobs.some(j => j.press === overContainer && (j.status === 'en_curso' || j.status === 'pausado'));
+                if (targetHasActive && !['en_curso', 'pausado'].includes(activeJob.status)) {
+                    // Do not allow moving into a press that already has an active job if the dragged job is not active itself
+                    return prevJobs;
+                }
+                // No change to job.press here, only reordering visual
+                return arrayMove(updatedJobs, activeIndex, activeIndex); // visually move to new container
+            }
         }
         return prevJobs;
     });
@@ -121,10 +133,9 @@ export default function SupervisorPage() {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    const currentActiveJob = activeJob; // Use the job that was active at drag start
-    setActiveJob(null); // Reset active job
+    setActiveId(null);
 
-    if (!over || !currentActiveJob) return; // Ensure there's an over target and a job was being dragged
+    if (!over) return;
   
     const activeId = active.id as string;
     const overId = over.id as string;
@@ -134,67 +145,76 @@ export default function SupervisorPage() {
   
     if (!activeContainer || !overContainer) return;
 
+    const activeJob = jobs.find(j => j.ot === activeId);
+    if (!activeJob) return;
+
     if (activeContainer !== overContainer) { // Moved to a different column (press)
-        // Business Rule: OT in 'en_curso' or 'en_pausa' cannot change press
-        if (currentActiveJob.status === 'en_curso' || currentActiveJob.status === 'en_pausa') {
-            console.warn(`Job ${currentActiveJob.ot} is ${currentActiveJob.status} and cannot be moved to a different press. Reverting...`);
-            setSnackbarMessage(`La OT ${currentActiveJob.ot} está ${currentActiveJob.status} y no puede ser movida de prensa.`);
-            setSnackbarSeverity('warning');
-            setSnackbarOpen(true);
-            fetchJobs(); // Revert optimistic update and re-fetch for consistency
-            return;
-        }
-        
-        // Check if the target press already has an active/paused job
-        const targetPressJobs = jobs.filter(j => j.press === overContainer && (j.status === 'en_curso' || j.status === 'en_pausa'));
-        if (targetPressJobs.length > 0) {
-            console.warn(`Prensa ${overContainer} already has an active or paused job. Cannot move ${currentActiveJob.ot}. Reverting...`);
-            setSnackbarMessage(`La Prensa ${overContainer} ya tiene una OT activa o en pausa. No se puede mover ${currentActiveJob.ot}.`);
-            setSnackbarSeverity('warning');
-            setSnackbarOpen(true);
-            fetchJobs(); // Revert optimistic update
-            return;
-        }
-
-
-        const updatedJob = { ...currentActiveJob, press: overContainer };
-        try {
-            await updateJob(currentActiveJob._id, updatedJob);
-             fetchJobs(); // Re-fetch for consistency
-        } catch (error: any) {
-            console.error("Failed to update job press", error);
-            setSnackbarMessage(error.message || "Error al actualizar la prensa de la OT.");
-            setSnackbarSeverity('error');
-            setSnackbarOpen(true);
-            fetchJobs(); // Revert optimistic update
-        }
+        // Prevent moving between presses
+        setSnackbarMessage("No se permite mover OTs entre diferentes prensas.");
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+        fetchJobs(); // Revert any optimistic update
+        return; 
     } else { // Reordered in the same column
-        const jobsInColumn = groupJobsByPress(jobs, pressColumns)[activeContainer];
-        const oldIndex = jobsInColumn.findIndex((item) => item.ot === activeId);
-        const newIndex = jobsInColumn.findIndex((item) => item.ot === overId);
+        const jobsInColumnOriginal = jobs.filter(job => job.press === activeContainer); // Capture original state for this column
+        const oldIndex = jobsInColumnOriginal.findIndex((item) => item.ot === activeId);
+        const newIndex = jobsInColumnOriginal.findIndex((item) => item.ot === overId);
 
         if (oldIndex !== newIndex) {
-            const newSortedItems = arrayMove(jobsInColumn, oldIndex, newIndex);
-            const updatePromises = newSortedItems.map((job, index) => 
-                updateJob(job._id, { ...job, priority: index })
-            );
+            // 1. Calculate the new visual order for jobs in the affected column
+            const newSortedJobsInContainer = arrayMove(jobsInColumnOriginal, oldIndex, newIndex);
+
+            // 2. Assign new consecutive priorities only to 'en_cola' jobs
+            let priorityCounter = 0;
+            const jobsWithNewPriorities = newSortedJobsInContainer.map(job => {
+                if (job.status === 'en_cola') {
+                    // Only update priority if it's 'en_cola'
+                    return { ...job, priority: priorityCounter++ };
+                }
+                return job; // Retain original priority for other statuses
+            });
+
+            // 3. Prepare promises for jobs whose priorities have changed
+            const updatePromises = jobsWithNewPriorities.map(newJob => {
+                const originalJob = jobsInColumnOriginal.find(j => j.ot === newJob.ot);
+                // Only send update if the job exists, is 'en_cola', and its priority has actually changed
+                // (Non-'en_cola' jobs are not expected to have their priority changed by drag and drop)
+                if (newJob.status === 'en_cola' && originalJob && originalJob.priority !== newJob.priority) {
+                    return updateJob(newJob._id, { priority: newJob.priority });
+                }
+                return null;
+            }).filter(Boolean);
+
             try {
-                await Promise.all(updatePromises);
-                fetchJobs();
+                // 4. Optimistically update the local state
+                setJobs(currentJobs => {
+                    const otherJobs = currentJobs.filter(job => job.press !== activeContainer);
+                    // Combine with other jobs and re-sort the entire list
+                    return [...otherJobs, ...jobsWithNewPriorities].sort(customJobSorter);
+                });
+
+                // 5. Execute backend updates
+                if (updatePromises.length > 0) {
+                    await Promise.all(updatePromises);
+                }
+                fetchJobs(); // Temporarily re-introduce full fetch to diagnose priority issue
+                setSnackbarMessage('Prioridad de OTs actualizada.');
+                setSnackbarSeverity('success');
+                setSnackbarOpen(true);
             } catch (error: any) {
                 console.error("Failed to update job priorities", error);
                 setSnackbarMessage(error.message || "Error al actualizar la prioridad de la OT.");
                 setSnackbarSeverity('error');
                 setSnackbarOpen(true);
-                fetchJobs();
+                fetchJobs(); // Revert optimistic update by refetching actual state
             }
         }
     }
   };
   
-  const handleOpenModal = (job: any | null) => {
+  const handleOpenModal = (job: Job | null) => {
     setEditingJob(job ? job : {
-        ot: '', client: '', jobType: '', press: pressColumns[0], status: 'en_cola', quantity: '', comments: '', checklist: defaultChecklist,
+        ot: '', client: '', jobType: '', press: pressColumns[0], status: 'en_cola', quantityPlanned: '', checklist: defaultChecklist,
     });
     setIsModalOpen(true);
   };
@@ -204,14 +224,18 @@ export default function SupervisorPage() {
     setEditingJob(null);
   };
 
-  const handleSaveJob = async (jobToSave: any) => {
+  const handleSaveJob = async (jobToSave: Partial<Job>) => {
     try {
-        console.log('handleSaveJob - jobToSave:', jobToSave); // Debug log
         if (jobToSave._id) { // Update
             await updateJob(jobToSave._id, jobToSave);
             setSnackbarMessage('OT actualizada exitosamente!');
             setSnackbarSeverity('success');
         } else { // Create
+            // Calculate next priority
+            const jobsInPress = jobs.filter(j => j.press === jobToSave.press && j.status === 'en_cola');
+            const maxPriority = jobsInPress.reduce((max, j) => Math.max(max, j.priority), -1);
+            jobToSave.priority = maxPriority + 1;
+
             await createJob(jobToSave);
             setSnackbarMessage('OT creada exitosamente!');
             setSnackbarSeverity('success');
@@ -227,7 +251,7 @@ export default function SupervisorPage() {
     handleCloseModal();
   };
 
-  const handleCancelJob = async (jobToCancel: any) => {
+  const handleCancelJob = async (jobToCancel: Job) => {
     try {
         await updateJob(jobToCancel._id, { ...jobToCancel, isCancelled: true });
         setSnackbarMessage('OT cancelada exitosamente!');
@@ -242,7 +266,7 @@ export default function SupervisorPage() {
     }
   };
 
-  const handleReestablishJob = async (jobToReestablish: any) => {
+  const handleReestablishJob = async (jobToReestablish: Job) => {
     try {
         await updateJob(jobToReestablish._id, { ...jobToReestablish, isCancelled: false, status: 'en_cola' });
         setSnackbarMessage('OT restablecida exitosamente!');
@@ -277,15 +301,15 @@ export default function SupervisorPage() {
       <Box sx={{ my: 4 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-            Planificacion de Produccion
+            Planificacion Prensas
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">
             <FormControlLabel
                 control={<Switch checked={showFinishedJobs} onChange={(e) => setShowFinishedJobs(e.target.checked)} />}
-                label="Ver Terminadas/Canceladas"
+                label="Ver Ocultas"
             />
             <Button variant="contained" onClick={() => handleOpenModal(null)}>
-              Crear Nueva OT
+              Nueva OT
             </Button>
           </Stack>
         </Stack>

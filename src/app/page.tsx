@@ -19,7 +19,7 @@ export default function HomePage() {
   return (
     <Container maxWidth="xl">
       <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 2, alignItems: 'center' }}>
-        <Chip label={`Usuario: ${user.name}`} />
+        <Chip label={`${user.name}`} />
         <Button variant="outlined" onClick={logout}>Cerrar Sesión</Button>
       </Box>
       <Box

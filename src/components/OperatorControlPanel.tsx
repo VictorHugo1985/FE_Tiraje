@@ -27,8 +27,11 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PersonIcon from '@mui/icons-material/Person';
 import OperatorChronometer from './OperatorChronometer';
 import ConfirmationDialog from './ConfirmationDialog';
-import { updateJob, addTimelineEvent, TimelineEventType, getPauseCauses } from '../services/api';
+import { updateJob, addTimelineEvent, TimelineEventType, getPauseCauses, getJobs } from '../services/api';
 import { useAuth } from '@/context/AuthContext'; // Import useAuth
+import { getDisplayStatus } from '../utils/statusMappers'; // Import getDisplayStatus
+import { endpointWriteToDisk } from 'next/dist/build/swc/generated-native';
+import { alignContent } from '@mui/system';
 
 interface PauseCause {
   _id: string;
@@ -382,6 +385,14 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
     return <Typography>Cargando...</Typography>;
   }
 
+  // Determine status color for the chip
+  let statusColor: "success" | "warning" | "default" | "info" | "error" = 'default';
+  if (job.status === 'en_curso') statusColor = 'success';
+  else if (job.status === 'pausado') statusColor = 'warning';
+  else if (job.status === 'terminado') statusColor = 'info';
+  else if (job.status === 'cancelado') statusColor = 'error';
+
+
   return (
     <Box sx={{ position: 'relative', pt: 1 }}>
       <Box sx={{ position: 'absolute', top: 0, right: 0 }}>
@@ -408,8 +419,10 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
         <Divider sx={{ my: 2 }} />
       </Typography>
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', mb: 2 }}>
-        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)' } }}>
+      
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center', mb: 2 }}>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)'} }} textAlign="end">
           <TextField
             id="machine-speed-input"
             inputRef={speedRef}
@@ -422,15 +435,13 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
             }}
             onBlur={handleMachineSpeedBlur}
             disabled={(job.status === 'terminado') || disableAllControls}
-            fullWidth
             size="small"
           />
         </Box>
-        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)' } }}>
+        <Box sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)' } }} textAlign="left">
           <TextField
             label="Cantidad de Tiraje"
             value={job.quantityPlanned || 'N/A'}
-            fullWidth
             variant="outlined"
             size="small"
             InputProps={{ readOnly: true }}
@@ -468,14 +479,14 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
           {horaFinal && <Typography variant="body1">Hora Final: {horaFinal.toLocaleTimeString()}</Typography>}
         </Stack>
         
-        <Stack spacing={1} sx={{ mt: 4, mx: 'auto', width: '55%' }}>
+        <Stack spacing={1} sx={{ mt: 4, mx: 'auto', width: '40%' }}>
           <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'inline-block', mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'inline-block', mb: 0.1 }}>
               Comentarios del Supervisor
             </Typography>
-            <Paper variant="elevation" sx={{ p: 1, minHeight: '40px' }}>
+            <Paper variant="elevation" sx={{ p: 1, minHeight: '35px' }}>
                 <Typography variant="body2">
-                    {job.comments || 'No hay comentarios.'}
+                    {job.comments || ''}
                 </Typography>
             </Paper>
           </Box>
@@ -484,7 +495,6 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
               name="operator-comments"
               inputRef={commentsRef}
               label="Comentarios del Operador"
-              multiline
               rows={1}
               fullWidth
               value={operatorComments}

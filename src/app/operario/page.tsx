@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Container, CardActionArea, Button, Stack, CircularProgress, Grid as MuiGrid } from '@mui/material';
+import { Box, Typography, Container, CardActionArea, Button, Stack, CircularProgress } from '@mui/material';
 
 import OperatorControlPanel from '../../components/OperatorControlPanel';
 import JobCard from '../../components/JobCard';
@@ -16,6 +16,23 @@ const pressOptions = [
   { name: 'Prensa 52', value: 'Prensa 52', color: 'error', lightColor: 'rgba(255, 200, 200, 0.5)' }, // Light red
 ];
 
+const customJobSorter = (a: Job, b: Job) => {
+  const statusOrder: Record<string, number> = { 'en_curso': 1, 'pausado': 2, 'en_cola': 3 };
+
+  const statusA = statusOrder[a.status] || 99; // Default to a high number for unknown statuses
+  const statusB = statusOrder[b.status] || 99;
+
+  if (statusA !== statusB) {
+    return statusA - statusB;
+  }
+
+    // If statuses are the same, sort by priority
+    if (a.status === b.status) {
+      return a.priority - b.priority;
+    }
+  
+    return 0;
+  };
 export default function OperarioPage() {
   const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all fetched jobs
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]); // Jobs to display based on selection
@@ -24,29 +41,21 @@ export default function OperarioPage() {
   const [selectedPress, setSelectedPress] = useState<string | null>(null);
   const [selectedPressColor, setSelectedPressColor] = useState<string | null>(null);
 
-  const fetchJobs = async () => {
-    try {
-      setLoading(true);
-      const fetched = await getJobs();
-      const operatorRelevantJobs = fetched.filter((j: Job) => ['en_cola', 'en_curso', 'en_pausa'].includes(j.status));
-      setAllJobs(operatorRelevantJobs);
-
-      // Re-apply filter if a press is already selected
-      if (selectedPress) {
-        setFilteredJobs(operatorRelevantJobs.filter((j: Job) => j.press === selectedPress));
-      } else {
-        setFilteredJobs([]); // No press selected, no jobs shown initially
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        const fetched = await getJobs();
+        const operatorRelevantJobs = fetched.filter((j: Job) => ['en_cola', 'en_curso', 'pausado'].includes(j.status));
+        setAllJobs(operatorRelevantJobs);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchJobs();
-  }, [selectedPress]); // Refetch when selectedPress changes to re-filter immediately
+  }, []);
 
   const refetchActiveJob = useCallback(async () => {
     if (activeJob?._id) {
@@ -62,18 +71,30 @@ export default function OperarioPage() {
   const handleSelectPress = (pressValue: string, lightColor: string) => {
     setSelectedPress(pressValue);
     setSelectedPressColor(lightColor);
-    setFilteredJobs(allJobs.filter((j: Job) => j.press === pressValue));
+    setFilteredJobs(allJobs.filter((j: Job) => j.press === pressValue).sort(customJobSorter));
   };
 
   const handleSelectJob = (job: Job) => {
     setActiveJob(job);
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = async () => {
     setActiveJob(null);
-    setSelectedPress(null); // Clear selected press when going back to list
+    setSelectedPress(null); 
     setSelectedPressColor(null);
-    fetchJobs(); // Refresh the list
+    setFilteredJobs([]);
+    
+    // Refetch all jobs to get the latest state
+    try {
+      setLoading(true);
+      const fetched = await getJobs();
+      const operatorRelevantJobs = fetched.filter((j: Job) => ['en_cola', 'en_curso', 'pausado'].includes(j.status));
+      setAllJobs(operatorRelevantJobs);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (activeJob) {
@@ -91,13 +112,13 @@ export default function OperarioPage() {
     );
   }
 
-  const hasActiveJobInPress = filteredJobs.some((j: Job) => ['en_curso', 'en_pausa'].includes(j.status));
+  const hasActiveJobInPress = filteredJobs.some((j: Job) => ['en_curso', 'pausado'].includes(j.status));
 
   return (
     <Container maxWidth="xl">
       <Box sx={{ my: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
-          Seleccionar Orden de Trabajo
+          Seleccionar OT
         </Typography>
 
         <Stack direction="row" spacing={2} justifyContent="center" mb={4}>
@@ -118,13 +139,13 @@ export default function OperarioPage() {
         </Typography>
 
         {loading ? <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress /></Box> : (
-            <Stack direction="row" flexWrap="wrap" spacing={2} useFlexGap sx={{ mt: 2 }}>
+            <Stack direction="row" flexWrap="wrap" spacing={2} useFlexGap sx={{ mt: 2, justifyContent: 'center' }}>
               {filteredJobs.length > 0 ? (
                 filteredJobs.map((job: Job) => (
-                  <Box key={job._id} sx={{ width: { xs: '100%', md: 'calc(50% - 8px)', lg: 'calc(33.333% - 10.666px)' } }}>
+                  <Box key={job._id} sx={{ width: 340, flexShrink: 0 }}>
                     <CardActionArea 
                       onClick={() => handleSelectJob(job)} 
-                      disabled={hasActiveJobInPress && !['en_curso', 'en_pausa'].includes(job.status)}
+                      disabled={hasActiveJobInPress && !['en_curso', 'pausado'].includes(job.status)}
                     >
                       <JobCard job={job} cardBackgroundColor={selectedPressColor} />
                     </CardActionArea>

@@ -5,36 +5,41 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import JobCard from './JobCard';
 import { Box } from '@mui/material';
+import { Job } from '../services/api';
 
 interface SortableJobCardProps {
-  job: any;
-  onEditJob: (job: any) => void;
-  onCancelJob: (job: any) => void;
-  onReestablishJob: (job: any) => void; // New prop
+  job: Job;
+  onEditJob: (job: Job) => void;
+  onCancelJob: (job: Job) => void;
+  onReestablishJob: (job: Job) => void;
+  disabled: boolean;
 }
 
-export function SortableJobCard({ job, onEditJob, onCancelJob, onReestablishJob }: SortableJobCardProps) {
+export function SortableJobCard({ job, onEditJob, onCancelJob, onReestablishJob, disabled }: SortableJobCardProps) {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id: job.ot });
+    isDragging,
+  } = useSortable({ id: job.ot, disabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    cursor: 'grab',
+    transition: isDragging ? 'none' : transition,
+    cursor: disabled ? 'default' : 'grab',
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 'auto',
   };
 
   return (
-    <Box ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <Box ref={setNodeRef} style={style} {...(disabled ? {} : attributes)} {...(disabled ? {} : listeners)}>
       <JobCard 
         job={job} 
         onEdit={onEditJob} 
         onCancel={onCancelJob} 
-        onReestablish={onReestablishJob} // Pass to JobCard
+        onReestablish={onReestablishJob}
       />
     </Box>
   );

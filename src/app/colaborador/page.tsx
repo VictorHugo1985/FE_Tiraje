@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Container, Stack, Paper, CircularProgress } from '@mui/material';
 import JobCard from '../../components/JobCard';
-import { getJobs, TimelineEventType } from '../../services/api';
+import { getJobs, TimelineEventType, Job } from '../../services/api';
 
 // Helper to format time in HHh MMm
 const formatTimeHHMM = (seconds: number) => {
@@ -15,8 +15,8 @@ const formatTimeHHMM = (seconds: number) => {
 };
 
 // Helper to group jobs by press
-const groupJobsByPress = (jobs: any[], presses: string[]) => {
-  const grouped: { [key:string]: any[] } = {};
+const groupJobsByPress = (jobs: Job[], presses: string[]) => {
+  const grouped: { [key:string]: Job[] } = {};
   presses.forEach(press => {
     grouped[press] = jobs.filter(job => job.press === press).sort((a, b) => a.priority - b.priority);
   });
@@ -25,7 +25,7 @@ const groupJobsByPress = (jobs: any[], presses: string[]) => {
 
 const pressColumns = ['Prensa 102', 'Prensa 74', 'Prensa 52'];
 
-const FinishedJobCard = ({ job }: { job: any }) => {
+const FinishedJobCard = ({ job }: { job: Job }) => {
     let chronometeredTimeDisplay = '';
     let operatorName = 'N/A'; // Default value
 
@@ -95,8 +95,28 @@ const CurrentTime = () => {
     );
 };
 
+const customJobSorter = (a: Job, b: Job) => {
+  const statusOrder: Record<string, number> = { 'en_curso': 1, 'pausado': 2, 'en_cola': 3 };
+
+  const statusA = statusOrder[a.status] || 99; // Default to a high number for unknown statuses
+  const statusB = statusOrder[b.status] || 99;
+
+  if (statusA !== statusB) {
+    return statusA - statusB;
+  }
+
+  // If statuses are the same and it's 'en_cola', sort by priority
+  if (a.status === 'en_cola' && b.status === 'en_cola') {
+    return a.priority - b.priority;
+  }
+
+  // For 'en_curso' or 'pausado' jobs with the same status, maintain existing order.
+  // Or, if a consistent order is desired, sort by createdAt/updatedAt (not specified, so default to 0 for now).
+  return 0; 
+};
+
 export default function ColaboradorPage() {
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -122,11 +142,11 @@ export default function ColaboradorPage() {
   const activeJobsByPress = pressColumns.reduce((acc, press) => {
     acc[press] = (jobsByPress[press] || []).filter(job => job.status !== 'terminado' && !job.isCancelled);
     return acc;
-  }, {} as { [key: string]: any[] });
+  }, {} as { [key: string]: Job[] });
 
   const allFinishedJobs = jobs
     .filter(job => job.status === 'terminado')
-    .sort((a,b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime());
+    .sort((a,b) => new Date(b.finishedAt!).getTime() - new Date(a.finishedAt!).getTime());
 
   return (
     <Container maxWidth={false} sx={{ p: '0 !important', m: '0 !important', height: '100vh', overflow: 'hidden', backgroundColor: '#eef2f6' }}>
@@ -148,7 +168,7 @@ export default function ColaboradorPage() {
                                 {press}
                             </Typography>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {(activeJobsByPress[press] || []).map(job => (
+                                {(activeJobsByPress[press] || []).sort(customJobSorter).map(job => (
                                     <JobCard key={job.ot} job={job} />
                                 ))}
                             </Box>

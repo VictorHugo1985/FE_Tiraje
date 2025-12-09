@@ -5,51 +5,28 @@ import { Card, CardContent, Typography, Box, Chip, IconButton, Stack, Divider } 
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
-import RestoreIcon from '@mui/icons-material/Restore'; // Import for re-establish
-import { useState } from 'react';                   // Import useState
+import RestoreIcon from '@mui/icons-material/Restore';
 import JobCardChronometer from './JobCardChronometer';
-import ConfirmationDialog from './ConfirmationDialog'; // Import ConfirmationDialog
-import { TimelineEventType } from '../services/api'; // Import TimelineEventType
+import { Job, TimelineEventType } from '../services/api';
+import { getDisplayStatus } from '../utils/statusMappers'; // Import getDisplayStatus
 
 interface JobCardProps {
-  job: {
-    _id: string; // Added _id for proper job identification
-    ot: string;
-    press: string;
-    client: string;
-    status: 'en_curso' | 'en_pausa' | 'en_cola' | 'terminado';
-    jobType: string;
-    quantityPlanned: string;
-    checklist: {
-      pantone: boolean;
-      barniz: boolean;
-      colors: string;
-    };
-    isCancelled: boolean;
-    createdAt: Date;
-    timeline?: any[]; // Added timeline property
-    finishedAt?: Date | null; // Added finishedAt property
-    operatorComments?: string; // Added operatorComments
-    totalPauseTime?: number; // Added totalPauseTime
-    setupCount?: number; // Added setupCount
-    pauseCount?: number; // Added pauseCount
-  };
-  onEdit?: (job: any) => void;
-  onCancel?: (job: any) => void;
-  onReestablish?: (job: any) => void; // New prop for re-establishing
-  cardBackgroundColor?: string | null; // New prop for dynamic background color
+  job: Job;
+  onEdit?: (job: Job) => void;
+  onCancel?: (job: Job) => void;
+  onReestablish?: (job: Job) => void;
+  cardBackgroundColor?: string | null;
 }
 
-const statusMap = {
-  en_curso: { label: 'En Curso', color: 'success' },
-  en_pausa: { label: 'En Pausa', color: 'warning' },
-  en_cola: { label: 'En Cola', color: 'default' },
-  terminado: { label: 'Terminado', color: 'info' },
-};
-
 export default function JobCard({ job, onEdit, onCancel, onReestablish, cardBackgroundColor }: JobCardProps) {
-  const { ot, press, client, status, jobType, quantityPlanned, checklist, isCancelled, createdAt, timeline, finishedAt, operatorComments, totalPauseTime, setupCount, pauseCount } = job;
-  const statusInfo = statusMap[status] as { label: string; color: "success" | "warning" | "default" | "info" };
+  const { ot, press, client, status, jobType, quantityPlanned, checklist, isCancelled, createdAt, timeline, finishedAt, operatorComments, totalPauseTime, setupCount, pauseCount, priority } = job;
+  
+  // Determine color directly based on status
+  let statusColor: "success" | "warning" | "default" | "info" | "error" = 'default';
+  if (status === 'en_curso') statusColor = 'success';
+  else if (status === 'pausado') statusColor = 'warning';
+  else if (status === 'terminado') statusColor = 'info';
+  else if (status === 'cancelado') statusColor = 'error';
 
   const formattedDate = new Date(createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
 
@@ -136,7 +113,17 @@ export default function JobCard({ job, onEdit, onCancel, onReestablish, cardBack
             )}
           </Box>
           <Stack alignItems="flex-end" spacing={0.5}>
-            <Chip label={isCancelled ? 'Cancelada' : statusInfo.label} color={isCancelled ? 'error' : statusInfo.color} size="small" sx={{ mt: 0.5 }} />
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Chip label={isCancelled ? 'Cancelada' : getDisplayStatus(status)} color={isCancelled ? 'error' : statusColor} size="small" sx={{ mt: 0.5 }} />
+              {typeof priority === 'number' && priority >= 0 && status === 'en_cola' && (
+                <Chip
+                  label={`#${priority === 0 ? priority + 1 : priority}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ mt: 0.5 }}
+                />
+              )}
+            </Stack>
             {status === 'en_curso' && jobStartTime && (
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
