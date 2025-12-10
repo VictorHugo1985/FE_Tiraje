@@ -121,13 +121,20 @@ export default function OperarioPage() {
           Seleccionar OT
         </Typography>
 
-        <Stack direction="row" spacing={2} justifyContent="center" mb={4}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 1, sm: 2 }}
+          justifyContent="center"
+          alignItems="center"
+          mb={4}
+        >
           {pressOptions.map((press) => (
             <Button
               key={press.value}
               variant={selectedPress === press.value ? 'contained' : 'outlined'}
               color={press.color as 'primary' | 'success' | 'error'}
               onClick={() => handleSelectPress(press.value, press.lightColor)}
+              sx={{ width: { xs: '100%', sm: 'auto' }, maxWidth: 300 }}
             >
               {press.name}
             </Button>
@@ -142,7 +149,7 @@ export default function OperarioPage() {
             <Stack direction="row" flexWrap="wrap" spacing={2} useFlexGap sx={{ mt: 2, justifyContent: 'center' }}>
               {filteredJobs.length > 0 ? (
                 filteredJobs.map((job: Job) => (
-                  <Box key={job._id} sx={{ width: 340, flexShrink: 0 }}>
+                  <Box key={job._id} sx={{ width: { xs: '100%', sm: 340 }, flexShrink: 0 }}>
                     <CardActionArea 
                       onClick={() => handleSelectJob(job)} 
                       disabled={hasActiveJobInPress && !['en_curso', 'pausado'].includes(job.status)}
