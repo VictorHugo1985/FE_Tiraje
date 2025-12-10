@@ -18,9 +18,18 @@ export default function HomePage() {
 
   return (
     <Container maxWidth="xl">
-      <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 2, alignItems: 'center' }}>
+      <Box sx={{
+        position: { sm: 'absolute' },
+        top: { xs: 8, sm: 16 },
+        right: { xs: 8, sm: 16 },
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: 1,
+        alignItems: 'center',
+        zIndex: 10,
+      }}>
         <Chip label={`${user.name}`} />
-        <Button variant="outlined" onClick={logout}>Cerrar Sesión</Button>
+        <Button variant="outlined" onClick={logout} size="small">Cerrar Sesión</Button>
       </Box>
       <Box
         sx={{
@@ -35,7 +44,7 @@ export default function HomePage() {
         <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 'bold' }}>
           Selección de Rol
         </Typography>
-        <Stack spacing={1.5} direction="column" sx={{ width: '100%', maxWidth: 300 }}>
+        <Stack spacing={1.5} direction="column" sx={{ width: '100%', maxWidth: { xs: 280, sm: 300 } }}>
           <Link href="/operario" passHref style={{ pointerEvents: canAccessOperario ? 'auto' : 'none' }}>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={!canAccessOperario}>
               Operario
