@@ -52,15 +52,15 @@ const FinishedJobCard = ({ job }: { job: Job }) => {
         <Paper elevation={1} sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.6)' }}>
             <Box sx={{ width: '100%' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
                     {job.press} | {job.jobType}
                   </Typography>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'burlywood'}}>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'burlywood', fontSize: '0.75rem'}}>
                     {operatorName}
                 </Typography>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{job.ot} | {job.client}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>{job.ot} | {job.client}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>
                 {job.finishedAt ? `Terminada: ${new Date(job.finishedAt).toLocaleDateString([], { day: '2-digit', month: 'short' })} - ${new Date(job.finishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
               </Typography>
                 {chronometeredTimeDisplay && (

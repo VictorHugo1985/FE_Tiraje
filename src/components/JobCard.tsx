@@ -69,16 +69,16 @@ export default function JobCard({ job, onEdit, onCancel, onReestablish, cardBack
       opacity: isCancelled ? 0.7 : 1,
       textDecoration: isCancelled ? 'line-through' : 'none'
     }}>
-      <CardContent>
+      <CardContent sx={{ p: 1.5 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
-            <Typography variant="body2" component="div" sx={{ fontWeight: 'bold' }}>
+            <Typography variant="body2" component="div" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
               {jobType}
             </Typography>
-            <Typography color="text.secondary" variant="body2">
+            <Typography color="text.secondary" variant="caption">
                {ot} | {client}
             </Typography>
-            <Typography color="text.secondary" variant="body2">
+            <Typography color="text.secondary" variant="caption" display="block">
               {press} | Tiraje: {quantityPlanned}
             </Typography>
             <Typography variant="caption" color="text.secondary">
