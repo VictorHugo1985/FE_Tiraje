@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Typography, Container, Stack, Paper, CircularProgress } from '@mui/material';
+import { Box, Typography, Container, Stack, Paper, CircularProgress, Grid } from '@mui/material';
 import JobCard from '../../components/JobCard';
 import { getJobs, TimelineEventType, Job } from '../../services/api';
 
@@ -159,37 +159,35 @@ export default function ColaboradorPage() {
         </Stack>
 
         {loading && jobs.length === 0 ? <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress /></Box> : (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                <Box sx={{ display: 'flex', gap: '16px', overflowX: 'auto', py: 1, maxWidth: '100%' }}>
-                  {pressColumns.map(press => (
-                    <Box key={press} sx={{ width: 340, flexShrink: 0 }}>
-                        <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', minHeight: 'calc(100vh - 150px)' }}>
-                            <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
-                                {press}
-                            </Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {(activeJobsByPress[press] || []).sort(customJobSorter).map(job => (
-                                    <JobCard key={job.ot} job={job} />
-                                ))}
-                            </Box>
-                        </Paper>
-                    </Box>
-                  ))}
-                  {/* Finished Jobs Column */}
-                  <Box key="terminadas" sx={{ width: 340, flexShrink: 0 }}>
-                      <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', minHeight: 'calc(100vh - 150px)', maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}>
-                          <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
-                              Terminadas
-                          </Typography>
-                          <Stack spacing={1}>
-                              {allFinishedJobs.map(job => (
-                                  <FinishedJobCard key={job.ot} job={job} />
-                              ))}
-                          </Stack>
-                      </Paper>
-                  </Box>
-                </Box>
-            </Box>
+            <Grid container spacing={2} mt={1} sx={{ overflowY: 'auto', maxHeight: 'calc(100vh - 100px)' }}>
+              {pressColumns.map(press => (
+                <Grid item xs={12} md={4} key={press}>
+                    <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%' }}>
+                        <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
+                            {press}
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {(activeJobsByPress[press] || []).sort(customJobSorter).map(job => (
+                                <JobCard key={job.ot} job={job} />
+                            ))}
+                        </Box>
+                    </Paper>
+                </Grid>
+              ))}
+              {/* Finished Jobs Column */}
+              <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}>
+                      <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
+                          Terminadas
+                      </Typography>
+                      <Stack spacing={1}>
+                          {allFinishedJobs.map(job => (
+                              <FinishedJobCard key={job.ot} job={job} />
+                          ))}
+                      </Stack>
+                  </Paper>
+              </Grid>
+            </Grid>
         )}
       </Box>
     </Container>

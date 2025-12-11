@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Typography, Container, Button, Stack, Switch, FormControlLabel, CircularProgress, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Container, Button, Stack, Switch, FormControlLabel, CircularProgress, Snackbar, Alert, Grid } from '@mui/material';
 import {
   DndContext,
   closestCorners,
@@ -325,22 +325,20 @@ export default function SupervisorPage() {
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <Box sx={{ display: 'flex', gap: '24px', overflowX: 'auto', py: 2, maxWidth: '100%' }}>
-                  {pressColumns.map(press => (
-                    <Box key={press} sx={{ width: 350, flexShrink: 0 }}>
-                      <JobColumn
-                        id={press}
-                        title={press}
-                        jobs={filteredJobsByPress[press] || []}
-                        onEditJob={handleOpenModal}
-                        onCancelJob={handleCancelJob}
-                        onReestablishJob={handleReestablishJob}
-                      />
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
+              <Grid container spacing={2} mt={2} justifyContent="center">
+                {pressColumns.map(press => (
+                  <Grid item xs={12} sm={6} md={4} key={press}>
+                    <JobColumn
+                      id={press}
+                      title={press}
+                      jobs={filteredJobsByPress[press] || []}
+                      onEditJob={handleOpenModal}
+                      onCancelJob={handleCancelJob}
+                      onReestablishJob={handleReestablishJob}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
             </DndContext>
         )}
       </Box>
