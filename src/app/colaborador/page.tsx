@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Typography, Container, Stack, Paper, CircularProgress, Grid } from '@mui/material';
+import { Box, Typography, Container, Stack, Paper, CircularProgress } from '@mui/material';
 import JobCard from '../../components/JobCard';
 import { getJobs, TimelineEventType, Job } from '../../services/api';
 
@@ -159,9 +159,9 @@ export default function ColaboradorPage() {
         </Stack>
 
         {loading && jobs.length === 0 ? <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress /></Box> : (
-            <Grid container spacing={2} mt={1} sx={{ overflowY: 'auto', maxHeight: 'calc(100vh - 100px)' }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 100px)' }}>
               {pressColumns.map(press => (
-                <Grid item xs={12} md={4} key={press}>
+                <Box key={press} sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(33.33% - 16px)' } }}>
                     <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%' }}>
                         <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
                             {press}
@@ -172,10 +172,10 @@ export default function ColaboradorPage() {
                             ))}
                         </Box>
                     </Paper>
-                </Grid>
+                </Box>
               ))}
               {/* Finished Jobs Column */}
-              <Grid item xs={12} md={4}>
+              <Box sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(33.33% - 16px)' } }}>
                   <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}>
                       <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
                           Terminadas
@@ -186,8 +186,8 @@ export default function ColaboradorPage() {
                           ))}
                       </Stack>
                   </Paper>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
         )}
       </Box>
     </Container>

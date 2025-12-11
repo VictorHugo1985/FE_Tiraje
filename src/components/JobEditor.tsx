@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import {
   Modal, Box, Typography, TextField, Button, Stack, Select, MenuItem, FormControl, InputLabel,
-  Checkbox, FormControlLabel, FormGroup, FormLabel, RadioGroup, Radio, Divider, InputAdornment, Grid
+  Checkbox, FormControlLabel, FormGroup, FormLabel, RadioGroup, Radio, Divider, InputAdornment
 } from '@mui/material';
 
 const style = {
@@ -109,8 +109,8 @@ export default function JobEditor({ job, open, onClose, onSave }: { job: any, op
         <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
           {isNew ? 'Crear Nueva OT' : 'Editar OT'}
         </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
               label="OT"
               name="ot"
@@ -122,71 +122,51 @@ export default function JobEditor({ job, open, onClose, onSave }: { job: any, op
                 startAdornment: <InputAdornment position="start">OT-</InputAdornment>,
               }}
             />
-          </Grid>
-          <Grid item xs={12} sm={6}>
             <FormControl fullWidth size="small">
               <InputLabel>Prensa</InputLabel>
               <Select name="press" value={formData.press} label="Prensa" onChange={handleChange}>
                 {pressOptions.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField label="Nombre/Tipo de Trabajo" name="jobType" value={formData.jobType} onChange={handleChange} size="small" fullWidth />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField label="Cliente" name="client" value={formData.client} onChange={handleChange} size="small" fullWidth />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField label="Cantidad de Tiraje" name="quantityPlanned" value={formData.quantityPlanned} onChange={handleChange} type="number" size="small" fullWidth />
-          </Grid>
+          </Stack>
+          <TextField label="Nombre/Tipo de Trabajo" name="jobType" value={formData.jobType} onChange={handleChange} size="small" fullWidth />
+          <TextField label="Cliente" name="client" value={formData.client} onChange={handleChange} size="small" fullWidth />
+          <TextField label="Cantidad de Tiraje" name="quantityPlanned" value={formData.quantityPlanned} onChange={handleChange} type="number" size="small" fullWidth />
           
           {!isNew && (
-            <Grid item xs={12}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Estado</InputLabel>
-                <Select name="status" value={formData.status} label="Estado" onChange={handleChange}>
-                  {statusOptions.map(s => <MenuItem key={s} value={s}>{s.replace('_', ' ')}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Grid>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select name="status" value={formData.status} label="Estado" onChange={handleChange}>
+                {statusOptions.map(s => <MenuItem key={s} value={s}>{s.replace('_', ' ')}</MenuItem>)}
+              </Select>
+            </FormControl>
           )}
 
-          <Grid item xs={12}>
-            <Divider sx={{ my: 1 }} />
-          </Grid>
+          <Divider sx={{ my: 1 }} />
 
-          <Grid item xs={12}>
-            <FormControl component="fieldset" variant="standard">
-              <FormLabel component="legend" sx={{ fontSize: '0.9rem' }}>Checklist</FormLabel>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
-                <FormGroup row>
-                  <FormControlLabel control={<Checkbox size="small" checked={formData.checklist?.pantone || false} onChange={handleChecklistChange} name="pantone" />} label={<Typography variant="body2">Pantone</Typography>} />
-                  <FormControlLabel control={<Checkbox size="small" checked={formData.checklist?.barniz || false} onChange={handleChecklistChange} name="barniz" />} label={<Typography variant="body2">Barniz</Typography>} />
-                </FormGroup>
-                <RadioGroup row name="colors" value={formData.checklist?.colors || '4x0'} onChange={handleColorChange}>
-                  <FormControlLabel value="4x0" control={<Radio size="small" />} label={<Typography variant="body2">4x0</Typography>} />
-                  <FormControlLabel value="4x4" control={<Radio size="small" />} label={<Typography variant="body2">4x4</Typography>} />
-                </RadioGroup>
-              </Stack>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Divider sx={{ my: 1 }} />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <TextField label="Comentarios" name="comments" value={formData.comments} onChange={handleChange} multiline rows={2} size="small" fullWidth />
-          </Grid>
-
-          <Grid item xs={12}>
-            <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ pt: 2 }}>
-              <Button onClick={onClose}>Cancelar</Button>
-              <Button variant="contained" onClick={handleSave} disabled={!formData.ot || !formData.client || !formData.jobType}>Guardar</Button>
+          <FormControl component="fieldset" variant="standard">
+            <FormLabel component="legend" sx={{ fontSize: '0.9rem' }}>Checklist</FormLabel>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
+              <FormGroup row>
+                <FormControlLabel control={<Checkbox size="small" checked={formData.checklist?.pantone || false} onChange={handleChecklistChange} name="pantone" />} label={<Typography variant="body2">Pantone</Typography>} />
+                <FormControlLabel control={<Checkbox size="small" checked={formData.checklist?.barniz || false} onChange={handleChecklistChange} name="barniz" />} label={<Typography variant="body2">Barniz</Typography>} />
+              </FormGroup>
+              <RadioGroup row name="colors" value={formData.checklist?.colors || '4x0'} onChange={handleColorChange}>
+                <FormControlLabel value="4x0" control={<Radio size="small" />} label={<Typography variant="body2">4x0</Typography>} />
+                <FormControlLabel value="4x4" control={<Radio size="small" />} label={<Typography variant="body2">4x4</Typography>} />
+              </RadioGroup>
             </Stack>
-          </Grid>
-        </Grid>
+          </FormControl>
+
+          <Divider sx={{ my: 1 }} />
+          
+          <TextField label="Comentarios" name="comments" value={formData.comments} onChange={handleChange} multiline rows={2} size="small" fullWidth />
+
+          <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ pt: 2 }}>
+            <Button onClick={onClose}>Cancelar</Button>
+            <Button variant="contained" onClick={handleSave} disabled={!formData.ot || !formData.client || !formData.jobType}>Guardar</Button>
+          </Stack>
+        </Stack>
       </Box>
     </Modal>
   );

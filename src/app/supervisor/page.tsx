@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Typography, Container, Button, Stack, Switch, FormControlLabel, CircularProgress, Snackbar, Alert, Grid } from '@mui/material';
+import { Box, Typography, Container, Button, Stack, Switch, FormControlLabel, CircularProgress, Snackbar, Alert } from '@mui/material';
 import {
   DndContext,
   closestCorners,
@@ -325,9 +325,9 @@ export default function SupervisorPage() {
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
-              <Grid container spacing={2} mt={2} justifyContent="center">
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2, justifyContent: 'center' }}>
                 {pressColumns.map(press => (
-                  <Grid item xs={12} sm={6} md={4} key={press}>
+                  <Box key={press} sx={{ flexGrow: 1, width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33.33% - 16px)' } }}>
                     <JobColumn
                       id={press}
                       title={press}
@@ -336,9 +336,9 @@ export default function SupervisorPage() {
                       onCancelJob={handleCancelJob}
                       onReestablishJob={handleReestablishJob}
                     />
-                  </Grid>
+                  </Box>
                 ))}
-              </Grid>
+              </Box>
             </DndContext>
         )}
       </Box>

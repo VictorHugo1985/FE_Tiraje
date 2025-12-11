@@ -20,8 +20,7 @@ import {
   Divider,
   Fab,
   TextField,
-  Chip,
-  Grid
+  Chip
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -452,37 +451,29 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
 
       <Paper elevation={0} sx={{ p: 0, my: 4, position: 'relative' }}>
         <Typography variant="h4" align="center" gutterBottom>Tiempo de Tiraje</Typography>
-        <Grid container spacing={2} justifyContent="center" alignItems="center">
-          <Grid item xs={12} sm="auto">
-            {!isJobStarted ? (
-              <Fab variant="extended" color="primary" onClick={handleStartJob} sx={{ fontSize: '1.0rem', width: '100%' }} disabled={(job.status === 'terminado') || disableAllControls}>
-                Iniciar
-              </Fab>
-            ) : isPaused ? (
-                <Fab variant="extended" color="primary" onClick={handleResume} sx={{ fontSize: '1.0rem', width: '100%' }} disabled={(job.status === 'terminado') || disableAllControls}>
-                  Reanudar
-                </Fab>
-              ) : (
-                <Fab variant="extended" color="warning" onClick={handleGeneralPauseClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', width: '100%' }}>
-                  Pausar
-                </Fab>
-              )}
-          </Grid>
-          <Grid item xs={12} sm="auto" sx={{ textAlign: 'center' }}>
-            <AccessTimeIcon sx={{ fontSize: 80, color: (job.status === 'en_curso') ? 'inherit' : 'text.disabled' }} />
-          </Grid>
-          <Grid item xs={12} sm="auto" sx={{ textAlign: 'center' }}>
-            <OperatorChronometer
-              running={job.status === 'en_curso'}
-              initialElapsedTime={mainChronometerInitialTime}
-            />
-          </Grid>
-          <Grid item xs={12} sm="auto">
-            <Fab variant="extended" color="error" onClick={handleFinishClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', width: '100%' }}>
-              Finalizar
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" alignItems="center">
+          {!isJobStarted ? (
+            <Fab variant="extended" color="primary" onClick={handleStartJob} sx={{ fontSize: '1.0rem', width: '100%' }} disabled={(job.status === 'terminado') || disableAllControls}>
+              Iniciar
             </Fab>
-          </Grid>
-        </Grid>
+          ) : isPaused ? (
+              <Fab variant="extended" color="primary" onClick={handleResume} sx={{ fontSize: '1.0rem', width: '100%' }} disabled={(job.status === 'terminado') || disableAllControls}>
+                Reanudar
+              </Fab>
+            ) : (
+              <Fab variant="extended" color="warning" onClick={handleGeneralPauseClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', width: '100%' }}>
+                Pausar
+              </Fab>
+            )}
+          <AccessTimeIcon sx={{ fontSize: 80, color: (job.status === 'en_curso') ? 'inherit' : 'text.disabled' }} />
+          <OperatorChronometer
+            running={job.status === 'en_curso'}
+            initialElapsedTime={mainChronometerInitialTime}
+          />
+          <Fab variant="extended" color="error" onClick={handleFinishClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', width: '100%' }}>
+            Finalizar
+          </Fab>
+        </Stack>
         <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 2 }}>
           {horaInicio && <Typography variant="body1">Hora Inicio: {horaInicio.toLocaleTimeString()}</Typography>}
           {horaFinal && <Typography variant="body1">Hora Final: {horaFinal.toLocaleTimeString()}</Typography>}
@@ -519,8 +510,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
         </Stack>
       </Paper>
       <Divider sx={{ my: 0 }} />
-      <Grid container spacing={4} mt={2}>
-        <Grid item xs={12} md={6}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, mt: 2 }}>
+        <Box sx={{ width: { xs: '100%', md: 'calc(50% - 16px)' }, flexGrow: 1 }}>
           <Card sx={{ height: '100%' }} elevation={0}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Box>
@@ -575,9 +566,9 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
               
-        <Grid item xs={12} md={6}>
+        <Box sx={{ width: { xs: '100%', md: 'calc(50% - 16px)' }, flexGrow: 1 }}>
           <Card sx={{ height: '100%'}} elevation={0}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h5" component="h2" gutterBottom align="center">
@@ -640,8 +631,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
       <ConfirmationDialog
         open={openConfirmation}
         onClose={handleCloseConfirmation}
