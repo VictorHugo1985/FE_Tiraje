@@ -15,6 +15,7 @@ export default function HomePage() {
   const canAccessSupervisor = user.role === 'supervisor' || user.role === 'admin';
   const canAccessOperario = user.role === 'operario' || user.role === 'admin';
   const canAccessColaborador = user.role === 'admin' || user.role === 'supervisor';
+  const canAccessReporte = user.role === 'admin' || user.role === 'supervisor';
 
   return (
     <Container maxWidth="xl">
@@ -58,6 +59,11 @@ export default function HomePage() {
           <Link href="/colaborador" passHref style={{ pointerEvents: canAccessColaborador ? 'auto' : 'none' }}>
             <Button variant="outlined" color="primary" size="large" fullWidth disabled={!canAccessColaborador}>
               Colaborador
+            </Button>
+          </Link>
+          <Link href="/reporte" passHref style={{ pointerEvents: canAccessReporte ? 'auto' : 'none' }}>
+            <Button variant="outlined" color="secondary" size="large" fullWidth disabled={!canAccessReporte}>
+              Reporte
             </Button>
           </Link>
         </Stack>
