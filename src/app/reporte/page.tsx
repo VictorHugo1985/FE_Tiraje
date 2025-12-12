@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import {
   Box, Typography, Container, Paper, CircularProgress, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TextField, MenuItem, FormControl, InputLabel
+  TableHead, TableRow, TextField, MenuItem, FormControl, InputLabel, Stack, Select
 } from '@mui/material';
 import { getJobs, Job } from '../../services/api';
 
