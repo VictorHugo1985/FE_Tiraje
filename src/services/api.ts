@@ -48,6 +48,7 @@ export interface Job {
   finishedAt: Date | null;
   priority: number;
   timeline?: any[];
+  comments?: string;
   operatorComments?: string;
   machineSpeed?: string;
   totalPauseTime?: number;
@@ -116,6 +117,7 @@ const toFrontendJob = (job: any): Job => {
         pauseCount: job.pauseCount || 0,
         machineSpeed: job.machineSpeed || '',
         operatorComments: job.operatorComments || '',
+        comments: job.comments || '',
         timeline: job.timeline || [],
     };
 };
@@ -173,6 +175,7 @@ export const updateJob = async (id: string, jobUpdate: any) => {
         payload.is4x0 = jobUpdate.checklist.colors === '4x0';
         payload.is4x4 = jobUpdate.checklist.colors === '4x4';
     }
+    if (jobUpdate.isCancelled !== undefined) payload.isCancelled = jobUpdate.isCancelled;
 
     try {
         const { data } = await api.patch(`/jobs/${id}`, payload);

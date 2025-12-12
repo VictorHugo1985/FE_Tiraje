@@ -34,7 +34,7 @@ export default function JobEditor({ job, open, onClose, onSave }: { job: any, op
     jobType: job?.jobType || '',
     press: job?.press || pressOptions[0],
     status: job?.status || 'en_cola',
-    quantityPlanned: job?.quantityPlanned || 0,
+    quantityPlanned: job?.quantityPlanned || '',
 
     comments: job?.comments || '',
     checklist: job?.checklist || defaultChecklist,
@@ -48,7 +48,7 @@ export default function JobEditor({ job, open, onClose, onSave }: { job: any, op
       jobType: job.jobType || '',
       press: job.press || pressOptions[0],
       status: job.status || 'en_cola',
-      quantityPlanned: job.quantityPlanned || 0,
+      quantityPlanned: job.quantityPlanned || '',
       comments: job.comments || '',
       checklist: job.checklist || defaultChecklist,
     } : {
@@ -58,7 +58,7 @@ export default function JobEditor({ job, open, onClose, onSave }: { job: any, op
       jobType: '',
       press: pressOptions[0],
       status: 'en_cola',
-      quantityPlanned: 0,
+      quantityPlanned: '',
       comments: '',
       checklist: defaultChecklist,
     };
@@ -131,7 +131,7 @@ export default function JobEditor({ job, open, onClose, onSave }: { job: any, op
           </Stack>
           <TextField label="Nombre/Tipo de Trabajo" name="jobType" value={formData.jobType} onChange={handleChange} size="small" fullWidth />
           <TextField label="Cliente" name="client" value={formData.client} onChange={handleChange} size="small" fullWidth />
-          <TextField label="Cantidad de Tiraje" name="quantityPlanned" value={formData.quantityPlanned} onChange={handleChange} type="number" size="small" fullWidth />
+          <TextField label="Cantidad de Tiraje" name="quantityPlanned" value={formData.quantityPlanned} onChange={handleChange} size="small" fullWidth />
           
           {!isNew && (
             <FormControl fullWidth size="small">
