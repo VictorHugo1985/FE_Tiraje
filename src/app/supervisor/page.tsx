@@ -252,26 +252,53 @@ export default function SupervisorPage() {
   };
 
   const handleCancelJob = async (jobToCancel: Job) => {
+    const originalJobs = jobs; // Store original state for potential revert
+
     try {
-        // Optimistically update the UI
-        setJobs(currentJobs =>
-            currentJobs.map(job =>
-                job._id === jobToCancel._id ? { ...job, status: 'cancelado', isCancelled: true } : job
-            )
+        let jobsToUpdatePromises: Promise<any>[] = [];
+        let optimisticallyUpdatedJobs = jobs.map(job =>
+            job._id === jobToCancel._id ? { ...job, status: 'cancelado', isCancelled: true } : job
         );
 
-        await updateJob(jobToCancel._id, { status: 'cancelado' });
+        if (jobToCancel.status === 'en_cola') {
+            const affectedPress = jobToCancel.press;
+            const remainingQueuedJobs = optimisticallyUpdatedJobs
+                .filter(job => job.press === affectedPress && job.status === 'en_cola')
+                .sort((a, b) => a.priority - b.priority);
 
-        setSnackbarMessage('OT cancelada exitosamente!');
+            let priorityCounter = 0;
+            const jobsWithNewPriorities = remainingQueuedJobs.map(job => ({
+                ...job,
+                priority: priorityCounter++,
+            }));
+
+            jobsToUpdatePromises = jobsWithNewPriorities
+                .filter((newJob, index) => newJob.priority !== remainingQueuedJobs[index].priority)
+                .map(job => updateJob(job._id, { priority: job.priority }));
+
+            optimisticallyUpdatedJobs = optimisticallyUpdatedJobs.map(job => {
+                const updatedJob = jobsWithNewPriorities.find(j => j._id === job._id);
+                return updatedJob || job;
+            });
+        }
+
+        setJobs(optimisticallyUpdatedJobs);
+
+        await updateJob(jobToCancel._id, { status: 'cancelado' });
+        if (jobsToUpdatePromises.length > 0) {
+            await Promise.all(jobsToUpdatePromises);
+        }
+
+        setSnackbarMessage('OT cancelada y cola actualizada exitosamente!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
-        // Re-fetch to ensure consistency, though the optimistic update should handle the immediate UI change
-        fetchJobs();
+
+        fetchJobs(); // Final sync with backend state
+
     } catch (error: any) {
-        console.error("Failed to cancel job", error);
-        // Revert the optimistic update on error
-        fetchJobs();
-        setSnackbarMessage(error.message || "Error al cancelar la OT.");
+        console.error("Failed to cancel job and update priorities", error);
+        setJobs(originalJobs); // Revert on error
+        setSnackbarMessage(error.message || "Error al cancelar la OT y actualizar la cola.");
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
     }
