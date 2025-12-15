@@ -257,7 +257,7 @@ export default function SupervisorPage() {
     try {
         let jobsToUpdatePromises: Promise<any>[] = [];
         let optimisticallyUpdatedJobs = jobs.map(job =>
-            job._id === jobToCancel._id ? { ...job, status: 'cancelado', isCancelled: true } : job
+            job._id === jobToCancel._id ? { ...job, status: 'cancelado' as Job['status'], isCancelled: true } : job
         );
 
         if (jobToCancel.status === 'en_cola') {
@@ -309,7 +309,7 @@ export default function SupervisorPage() {
         // Optimistically update the UI
         setJobs(currentJobs =>
             currentJobs.map(job =>
-                job._id === jobToReestablish._id ? { ...job, status: 'en_cola', isCancelled: false } : job
+                job._id === jobToReestablish._id ? { ...job, status: 'en_cola' as Job['status'], isCancelled: false } : job
             )
         );
 
