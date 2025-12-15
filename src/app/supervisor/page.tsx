@@ -253,13 +253,24 @@ export default function SupervisorPage() {
 
   const handleCancelJob = async (jobToCancel: Job) => {
     try {
-        await updateJob(jobToCancel._id, { ...jobToCancel, isCancelled: true });
+        // Optimistically update the UI
+        setJobs(currentJobs =>
+            currentJobs.map(job =>
+                job._id === jobToCancel._id ? { ...job, status: 'cancelado', isCancelled: true } : job
+            )
+        );
+
+        await updateJob(jobToCancel._id, { status: 'cancelado' });
+
         setSnackbarMessage('OT cancelada exitosamente!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
+        // Re-fetch to ensure consistency, though the optimistic update should handle the immediate UI change
         fetchJobs();
     } catch (error: any) {
         console.error("Failed to cancel job", error);
+        // Revert the optimistic update on error
+        fetchJobs();
         setSnackbarMessage(error.message || "Error al cancelar la OT.");
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
@@ -268,13 +279,22 @@ export default function SupervisorPage() {
 
   const handleReestablishJob = async (jobToReestablish: Job) => {
     try {
-        await updateJob(jobToReestablish._id, { ...jobToReestablish, isCancelled: false, status: 'en_cola' });
+        // Optimistically update the UI
+        setJobs(currentJobs =>
+            currentJobs.map(job =>
+                job._id === jobToReestablish._id ? { ...job, status: 'en_cola', isCancelled: false } : job
+            )
+        );
+
+        await updateJob(jobToReestablish._id, { status: 'en_cola', isCancelled: false });
+
         setSnackbarMessage('OT restablecida exitosamente!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
         fetchJobs();
     } catch (error: any) {
         console.error("Failed to re-establish job", error);
+        fetchJobs(); // Revert on error
         setSnackbarMessage(error.message || "Error al restablecer la OT.");
         setSnackbarSeverity('error');
         setSnackbarOpen(true);

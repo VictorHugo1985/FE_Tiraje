@@ -1,13 +1,13 @@
 // src/app/reporte/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
-  Box, Typography, Container, Paper, CircularProgress, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TextField, MenuItem, FormControl, InputLabel, Stack, Select, Button, Menu, Checkbox, ListItemIcon
+  Box, Typography, Container, Paper, CircularProgress, TextField, MenuItem, FormControl, InputLabel, Stack, Select, Button, Checkbox
 } from '@mui/material';
 import { getJobs, Job } from '../../services/api';
 import * as XLSX from 'xlsx';
+import { MaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
 
 export default function ReportePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -15,38 +15,6 @@ export default function ReportePage() {
   const [pressFilter, setPressFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [visibleColumns, setVisibleColumns] = useState({
-    ot: true,
-    client: true,
-    press: true,
-    jobType: true,
-    machineSpeed: true,
-    pantone: true,
-    barniz: true,
-    '4x0': true,
-    '4x4': true,
-    setupCount: true,
-    totalSetupTime: true,
-    totalPauseTime: true,
-    supervisorComments: true,
-    operatorComments: true,
-    status: true,
-    createdAt: true,
-    tirajeTime: true,
-  });
-
-  const handleColumnVisibilityChange = (column: keyof typeof visibleColumns) => {
-    setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
-  };
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -59,7 +27,8 @@ export default function ReportePage() {
 
         const fetchedJobs = await getJobs(filters);
         setJobs(fetchedJobs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-      } catch (error) {
+      } catch (error)
+ {
         console.error(error);
       } finally {
         setLoading(false);
@@ -76,6 +45,63 @@ export default function ReportePage() {
     XLSX.writeFile(workbook, "reporte_ots.xlsx");
   };
 
+  const columns = useMemo<MRT_ColumnDef<Job>[]>(
+    () => [
+      { accessorKey: 'ot', header: 'OT' },
+      { accessorKey: 'client', header: 'Cliente' },
+      { accessorKey: 'press', header: 'Prensa' },
+      { accessorKey: 'jobType', header: 'Tipo de Trabajo' },
+      { accessorKey: 'machineSpeed', header: 'Velocidad de Máquina' },
+      {
+        accessorKey: 'checklist.pantone',
+        header: 'Pantone',
+        Cell: ({ cell }) => <Checkbox checked={cell.getValue<boolean>()} disabled />,
+      },
+      {
+        accessorKey: 'checklist.barniz',
+        header: 'Barniz',
+        Cell: ({ cell }) => <Checkbox checked={cell.getValue<boolean>()} disabled />,
+      },
+      {
+        accessorFn: (row) => row.checklist.colors === '4x0',
+        id: '4x0',
+        header: '4x0',
+        Cell: ({ cell }) => <Checkbox checked={cell.getValue<boolean>()} disabled />,
+      },
+      {
+        accessorFn: (row) => row.checklist.colors === '4x4',
+        id: '4x4',
+        header: '4x4',
+        Cell: ({ cell }) => <Checkbox checked={cell.getValue<boolean>()} disabled />,
+      },
+      { accessorKey: 'setupCount', header: 'Conteo de Setup' },
+      {
+        id: 'totalSetupTime',
+        header: 'Total Setup',
+        accessorFn: (row) => calculateTotalSetupTime(row),
+      },
+      {
+        accessorKey: 'totalPauseTime',
+        header: 'Total Tiempo Pausa',
+        Cell: ({ cell }) => cell.getValue<number>() ? `${Math.floor(cell.getValue<number>() / 60)}m` : 'N/A',
+      },
+      { accessorKey: 'comments', header: 'Comentarios Supervisor' },
+      { accessorKey: 'operatorComments', header: 'Comentarios Operador' },
+      { accessorKey: 'status', header: 'Estado' },
+      {
+        accessorKey: 'createdAt',
+        header: 'Fecha de Creación',
+        Cell: ({ cell }) => new Date(cell.getValue<Date>()).toLocaleDateString(),
+      },
+      {
+        id: 'tirajeTime',
+        header: 'Tiempo Total de Tiraje',
+        accessorFn: (row) => calculateTirajeTime(row),
+      },
+    ],
+    [],
+  );
+
   return (
     <Container maxWidth="xl">
       <Box sx={{ my: 4 }}>
@@ -86,21 +112,6 @@ export default function ReportePage() {
           <Button variant="contained" onClick={handleExport}>
             Exportar a Excel
           </Button>
-          <Button variant="outlined" onClick={handleMenuOpen}>
-            Columnas
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
-            {Object.keys(visibleColumns).map((column) => (
-              <MenuItem key={column} onClick={() => handleColumnVisibilityChange(column as keyof typeof visibleColumns)}>
-                <Checkbox checked={visibleColumns[column as keyof typeof visibleColumns]} />
-                {column}
-              </MenuItem>
-            ))}
-          </Menu>
         </Stack>
 
         <Stack direction="row" spacing={2} mb={2}>
@@ -144,54 +155,14 @@ export default function ReportePage() {
             <CircularProgress />
           </Box>
         ) : (
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
-            <Table sx={{ minWidth: 650 }} aria-label="simple table">
-              <TableHead>
-                <TableRow>
-                  {visibleColumns.ot && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>OT</TableCell>}
-                  {visibleColumns.client && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Cliente</TableCell>}
-                  {visibleColumns.press && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Prensa</TableCell>}
-                  {visibleColumns.jobType && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Tipo de Trabajo</TableCell>}
-                  {visibleColumns.machineSpeed && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Velocidad de Máquina</TableCell>}
-                  {visibleColumns.pantone && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Pantone</TableCell>}
-                  {visibleColumns.barniz && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Barniz</TableCell>}
-                  {visibleColumns['4x0'] && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>4x0</TableCell>}
-                  {visibleColumns['4x4'] && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>4x4</TableCell>}
-                  {visibleColumns.setupCount && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Conteo de Setup</TableCell>}
-                  {visibleColumns.totalSetupTime && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Total Setup</TableCell>}
-                  {visibleColumns.totalPauseTime && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Total Tiempo Pausa</TableCell>}
-                  {visibleColumns.supervisorComments && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Comentarios Supervisor</TableCell>}
-                  {visibleColumns.operatorComments && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Comentarios Operador</TableCell>}
-                  {visibleColumns.status && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Estado</TableCell>}
-                  {visibleColumns.createdAt && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Fecha de Creación</TableCell>}
-                  {visibleColumns.tirajeTime && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>Tiempo Total de Tiraje</TableCell>}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {jobs.map((job) => (
-                  <TableRow key={job._id}>
-                    {visibleColumns.ot && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.ot}</TableCell>}
-                    {visibleColumns.client && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.client}</TableCell>}
-                    {visibleColumns.press && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.press}</TableCell>}
-                    {visibleColumns.jobType && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.jobType}</TableCell>}
-                    {visibleColumns.machineSpeed && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.machineSpeed}</TableCell>}
-                    {visibleColumns.pantone && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.checklist.pantone ? 'Sí' : 'No'}</TableCell>}
-                    {visibleColumns.barniz && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.checklist.barniz ? 'Sí' : 'No'}</TableCell>}
-                    {visibleColumns['4x0'] && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.checklist.colors === '4x0' ? 'Sí' : 'No'}</TableCell>}
-                    {visibleColumns['4x4'] && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.checklist.colors === '4x4' ? 'Sí' : 'No'}</TableCell>}
-                    {visibleColumns.setupCount && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.setupCount}</TableCell>}
-                    {visibleColumns.totalSetupTime && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{calculateTotalSetupTime(job)}</TableCell>}
-                    {visibleColumns.totalPauseTime && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.totalPauseTime ? `${Math.floor(job.totalPauseTime / 60)}m` : 'N/A'}</TableCell>}
-                    {visibleColumns.supervisorComments && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.comments}</TableCell>}
-                    {visibleColumns.operatorComments && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.operatorComments}</TableCell>}
-                    {visibleColumns.status && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{job.status}</TableCell>}
-                    {visibleColumns.createdAt && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{new Date(job.createdAt).toLocaleDateString()}</TableCell>}
-                    {visibleColumns.tirajeTime && <TableCell sx={{ fontSize: '0.75rem', padding: '8px' }}>{calculateTirajeTime(job)}</TableCell>}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <MaterialReactTable
+            columns={columns}
+            data={jobs}
+            enableColumnResizing
+            enableColumnOrdering
+            enableHiding
+            initialState={{ density: 'compact' }}
+          />
         )}
       </Box>
     </Container>
