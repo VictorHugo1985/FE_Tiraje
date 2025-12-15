@@ -117,7 +117,7 @@ export default function JobCard({ job, onEdit, onCancel, onReestablish, cardBack
               <Chip label={isCancelled ? 'Cancelada' : getDisplayStatus(status)} color={isCancelled ? 'error' : statusColor} size="small" sx={{ mt: 0.5 }} />
               {typeof priority === 'number' && priority >= 0 && status === 'en_cola' && (
                 <Chip
-                  label={`#${priority + 1}`}
+                  label={`#${priority}`}
                   size="small"
                   variant="outlined"
                   sx={{ mt: 0.5 }}
