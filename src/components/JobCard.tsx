@@ -124,10 +124,10 @@ export default function JobCard({ job, onEdit, onCancel, onReestablish, cardBack
                 />
               )}
             </Stack>
-            {status === 'en_curso' && jobStartTime && (
+            {(status === 'en_curso' || status === 'pausado') && jobStartTime && (
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-                <JobCardChronometer running={status === 'en_curso'} startTime={jobStartTime} variant="body2" sx={{ color: 'text.secondary' }}/>
+                <JobCardChronometer running={status === 'en_curso'} startTime={jobStartTime} totalPauseTime={totalPauseTime} timeline={timeline} variant="body2" sx={{ color: 'text.secondary' }}/>
               </Box>
             )}
           </Stack>
