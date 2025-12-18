@@ -161,7 +161,7 @@ export default function ColaboradorPage() {
         {loading && jobs.length === 0 ? <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress /></Box> : (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 100px)' }}>
               {pressColumns.map(press => (
-                <Box key={press} sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(33.33% - 16px)' } }}>
+                <Box key={press} sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(50% - 16px)', lg: 'calc(25% - 16px)' } }}>
                     <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%' }}>
                         <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
                             {press}
@@ -175,7 +175,7 @@ export default function ColaboradorPage() {
                 </Box>
               ))}
               {/* Finished Jobs Column */}
-              <Box sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(33.33% - 16px)' } }}>
+              <Box sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(50% - 16px)', lg: 'calc(25% - 16px)' } }}>
                   <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}>
                       <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
                           Terminadas

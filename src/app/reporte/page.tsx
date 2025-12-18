@@ -114,8 +114,8 @@ export default function ReportePage() {
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={2} mb={2}>
-          <FormControl sx={{ minWidth: 200 }}>
+        <Stack direction="row" spacing={1} mb={2} alignItems="center">
+          <FormControl sx={{ minWidth: 180 }} size="small">
             <InputLabel>Prensa</InputLabel>
             <Select
               value={pressFilter}
@@ -133,6 +133,7 @@ export default function ReportePage() {
           <TextField
             label="Fecha de Inicio"
             type="date"
+            size="small"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             InputLabelProps={{
@@ -142,6 +143,7 @@ export default function ReportePage() {
           <TextField
             label="Fecha de Fin"
             type="date"
+            size="small"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             InputLabelProps={{
