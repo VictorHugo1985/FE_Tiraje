@@ -222,7 +222,7 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
     // Calculate initial chronometer time
     let initialTime = 0;
     if (currentHoraInicio) {
-      if (currentIsPaused && lastPauseStart && lastPauseStart instanceof Date) {
+      if (currentIsPaused && lastPauseStart) {
         const grossElapsedTime = (lastPauseStart.getTime() - currentHoraInicio.getTime()) / 1000;
         initialTime = grossElapsedTime - (job.totalPauseTime || 0);
       } else {
