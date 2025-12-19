@@ -220,13 +220,17 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
     }
 
     // Calculate initial chronometer time
-    let totalProductionDuration = 0;
-    if (currentHoraInicio) { // Use the overall first production start
-      const end = currentIsJobStarted ? new Date() : currentHoraFinal || new Date(); // If currently running, use now, else overall end
-      totalProductionDuration = (end.getTime() - currentHoraInicio.getTime()) / 1000;
+    let initialTime = 0;
+    if (currentHoraInicio) {
+      if (currentIsPaused && lastPauseStart) {
+        const grossElapsedTime = (lastPauseStart.getTime() - currentHoraInicio.getTime()) / 1000;
+        initialTime = grossElapsedTime - (job.totalPauseTime || 0);
+      } else {
+        const end = currentIsJobStarted ? new Date() : currentHoraFinal || new Date();
+        const totalProductionDuration = (end.getTime() - currentHoraInicio.getTime()) / 1000;
+        initialTime = totalProductionDuration - (job.totalPauseTime || 0);
+      }
     }
-
-    const initialTime = totalProductionDuration - (job.totalPauseTime || 0);
     setMainChronometerInitialTime(initialTime < 0 ? 0 : initialTime);
 
     // Set all other states
