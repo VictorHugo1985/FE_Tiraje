@@ -222,7 +222,17 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
     // Calculate initial chronometer time
     let totalProductionDuration = 0;
     if (currentHoraInicio) { // Use the overall first production start
-      const end = currentIsJobStarted ? new Date() : currentHoraFinal || new Date(); // If currently running, use now, else overall end
+      let end: Date;
+      if (currentIsPaused && lastPauseStart) {
+        // If paused, the calculation should stop at the moment the pause began.
+        end = lastPauseStart;
+      } else if (currentIsJobStarted) {
+        // If the job is actively running, calculate up to the present moment.
+        end = new Date();
+      } else {
+        // If the job is not running (i.e., finished), use its final timestamp.
+        end = currentHoraFinal || new Date();
+      }
       totalProductionDuration = (end.getTime() - currentHoraInicio.getTime()) / 1000;
     }
 
