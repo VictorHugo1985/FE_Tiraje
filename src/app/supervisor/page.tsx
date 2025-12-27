@@ -252,15 +252,53 @@ export default function SupervisorPage() {
   };
 
   const handleCancelJob = async (jobToCancel: Job) => {
+    const originalJobs = jobs; // Store original state for potential revert
+
     try {
-        await updateJob(jobToCancel._id, { ...jobToCancel, isCancelled: true });
-        setSnackbarMessage('OT cancelada exitosamente!');
+        let jobsToUpdatePromises: Promise<any>[] = [];
+        let optimisticallyUpdatedJobs = jobs.map(job =>
+            job._id === jobToCancel._id ? { ...job, status: 'cancelado' as Job['status'], isCancelled: true } : job
+        );
+
+        if (jobToCancel.status === 'en_cola') {
+            const affectedPress = jobToCancel.press;
+            const remainingQueuedJobs = optimisticallyUpdatedJobs
+                .filter(job => job.press === affectedPress && job.status === 'en_cola')
+                .sort((a, b) => a.priority - b.priority);
+
+            let priorityCounter = 0;
+            const jobsWithNewPriorities = remainingQueuedJobs.map(job => ({
+                ...job,
+                priority: priorityCounter++,
+            }));
+
+            jobsToUpdatePromises = jobsWithNewPriorities
+                .filter((newJob, index) => newJob.priority !== remainingQueuedJobs[index].priority)
+                .map(job => updateJob(job._id, { priority: job.priority }));
+
+            optimisticallyUpdatedJobs = optimisticallyUpdatedJobs.map(job => {
+                const updatedJob = jobsWithNewPriorities.find(j => j._id === job._id);
+                return updatedJob || job;
+            });
+        }
+
+        setJobs(optimisticallyUpdatedJobs);
+
+        await updateJob(jobToCancel._id, { status: 'cancelado' });
+        if (jobsToUpdatePromises.length > 0) {
+            await Promise.all(jobsToUpdatePromises);
+        }
+
+        setSnackbarMessage('OT cancelada y cola actualizada exitosamente!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
-        fetchJobs();
+
+        fetchJobs(); // Final sync with backend state
+
     } catch (error: any) {
-        console.error("Failed to cancel job", error);
-        setSnackbarMessage(error.message || "Error al cancelar la OT.");
+        console.error("Failed to cancel job and update priorities", error);
+        setJobs(originalJobs); // Revert on error
+        setSnackbarMessage(error.message || "Error al cancelar la OT y actualizar la cola.");
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
     }
@@ -268,13 +306,22 @@ export default function SupervisorPage() {
 
   const handleReestablishJob = async (jobToReestablish: Job) => {
     try {
-        await updateJob(jobToReestablish._id, { ...jobToReestablish, isCancelled: false, status: 'en_cola' });
+        // Optimistically update the UI
+        setJobs(currentJobs =>
+            currentJobs.map(job =>
+                job._id === jobToReestablish._id ? { ...job, status: 'en_cola' as Job['status'], isCancelled: false } : job
+            )
+        );
+
+        await updateJob(jobToReestablish._id, { status: 'en_cola', isCancelled: false });
+
         setSnackbarMessage('OT restablecida exitosamente!');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
         fetchJobs();
     } catch (error: any) {
         console.error("Failed to re-establish job", error);
+        fetchJobs(); // Revert on error
         setSnackbarMessage(error.message || "Error al restablecer la OT.");
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
@@ -325,21 +372,19 @@ export default function SupervisorPage() {
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <Box sx={{ display: 'flex', gap: '24px', overflowX: 'auto', py: 2, maxWidth: '100%' }}>
-                  {pressColumns.map(press => (
-                    <Box key={press} sx={{ width: 350, flexShrink: 0 }}>
-                      <JobColumn
-                        id={press}
-                        title={press}
-                        jobs={filteredJobsByPress[press] || []}
-                        onEditJob={handleOpenModal}
-                        onCancelJob={handleCancelJob}
-                        onReestablishJob={handleReestablishJob}
-                      />
-                    </Box>
-                  ))}
-                </Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2, justifyContent: 'center' }}>
+                {pressColumns.map(press => (
+                  <Box key={press} sx={{ flexGrow: 1, width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33.33% - 16px)' } }}>
+                    <JobColumn
+                      id={press}
+                      title={press}
+                      jobs={filteredJobsByPress[press] || []}
+                      onEditJob={handleOpenModal}
+                      onCancelJob={handleCancelJob}
+                      onReestablishJob={handleReestablishJob}
+                    />
+                  </Box>
+                ))}
               </Box>
             </DndContext>
         )}

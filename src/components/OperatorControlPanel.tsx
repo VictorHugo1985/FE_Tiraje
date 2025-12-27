@@ -20,7 +20,7 @@ import {
   Divider,
   Fab,
   TextField,
-  Chip // Import Chip
+  Chip
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -220,13 +220,17 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
     }
 
     // Calculate initial chronometer time
-    let totalProductionDuration = 0;
-    if (currentHoraInicio) { // Use the overall first production start
-      const end = currentIsJobStarted ? new Date() : currentHoraFinal || new Date(); // If currently running, use now, else overall end
-      totalProductionDuration = (end.getTime() - currentHoraInicio.getTime()) / 1000;
+    let initialTime = 0;
+    if (currentHoraInicio) {
+      if (currentIsPaused && lastPauseStart) {
+        const grossElapsedTime = (lastPauseStart.getTime() - currentHoraInicio.getTime()) / 1000;
+        initialTime = grossElapsedTime - (job.totalPauseTime || 0);
+      } else {
+        const end = currentIsJobStarted ? new Date() : currentHoraFinal || new Date();
+        const totalProductionDuration = (end.getTime() - currentHoraInicio.getTime()) / 1000;
+        initialTime = totalProductionDuration - (job.totalPauseTime || 0);
+      }
     }
-
-    const initialTime = totalProductionDuration - (job.totalPauseTime || 0);
     setMainChronometerInitialTime(initialTime < 0 ? 0 : initialTime);
 
     // Set all other states
@@ -451,17 +455,17 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
 
       <Paper elevation={0} sx={{ p: 0, my: 4, position: 'relative' }}>
         <Typography variant="h4" align="center" gutterBottom>Tiempo de Tiraje</Typography>
-        <Stack direction="row" spacing={4} justifyContent="center" alignItems="center">
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" alignItems="center">
           {!isJobStarted ? (
-            <Fab variant="extended" color="primary" onClick={handleStartJob} sx={{ fontSize: '1.0rem', px: 4, py: 3 }} disabled={(job.status === 'terminado') || disableAllControls}>
+            <Fab variant="extended" color="primary" onClick={handleStartJob} sx={{ fontSize: '1.0rem', width: '100%' }} disabled={(job.status === 'terminado') || disableAllControls}>
               Iniciar
             </Fab>
           ) : isPaused ? (
-              <Fab variant="extended" color="primary" onClick={handleResume} sx={{ fontSize: '1.0rem', px: 4, py: 3 }} disabled={(job.status === 'terminado') || disableAllControls}>
+              <Fab variant="extended" color="primary" onClick={handleResume} sx={{ fontSize: '1.0rem', width: '100%' }} disabled={(job.status === 'terminado') || disableAllControls}>
                 Reanudar
               </Fab>
             ) : (
-              <Fab variant="extended" color="warning" onClick={handleGeneralPauseClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.odrem', px: 4, py: 3 }}>
+              <Fab variant="extended" color="warning" onClick={handleGeneralPauseClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', width: '100%' }}>
                 Pausar
               </Fab>
             )}
@@ -470,7 +474,7 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
             running={job.status === 'en_curso'}
             initialElapsedTime={mainChronometerInitialTime}
           />
-          <Fab variant="extended" color="error" onClick={handleFinishClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', px: 4, py: 3 }}>
+          <Fab variant="extended" color="error" onClick={handleFinishClick} disabled={!isJobStarted || (job.status === 'terminado') || disableAllControls} sx={{ fontSize: '1.0rem', width: '100%' }}>
             Finalizar
           </Fab>
         </Stack>
@@ -479,7 +483,7 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
           {horaFinal && <Typography variant="body1">Hora Final: {horaFinal.toLocaleTimeString()}</Typography>}
         </Stack>
         
-        <Stack spacing={1} sx={{ mt: 4, mx: 'auto', width: '40%' }}>
+        <Stack spacing={1} sx={{ mt: 4, mx: 'auto', width: { xs: '90%', sm: '40%' } }}>
           <Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'inline-block', mb: 0.1 }}>
               Comentarios del Supervisor
@@ -510,8 +514,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
         </Stack>
       </Paper>
       <Divider sx={{ my: 0 }} />
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: '100%', mx: 'auto', mt: 2 }}>
-        <Box sx={{ width: { xs: '100%', md: '45%' } }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, mt: 2 }}>
+        <Box sx={{ width: { xs: '100%', md: 'calc(50% - 16px)' }, flexGrow: 1 }}>
           <Card sx={{ height: '100%' }} elevation={0}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Box>
@@ -519,7 +523,7 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
                   Puesta a Punto
                 </Typography>
               </Box>
-              <Stack direction="row" spacing={2} sx={{ mt: 2 }} justifyContent="center">
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }} justifyContent="center">
                 <Button
                   variant="outlined"
                   onClick={handleStartPuestaPunto}
@@ -568,14 +572,14 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
           </Card>
         </Box>
               
-        <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+        <Box sx={{ width: { xs: '100%', md: 'calc(50% - 16px)' }, flexGrow: 1 }}>
           <Card sx={{ height: '100%'}} elevation={0}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h5" component="h2" gutterBottom align="center">
                 Pausas
               </Typography>
-              <Stack width={'90%'} direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center" justifyContent="center">
-                <FormControl sx={{ width: '60%' }} disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}>
+              <Stack width={{ xs: '100%', sm: '90%' }} direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }} alignItems="center" justifyContent="center">
+                <FormControl sx={{ width: { xs: '100%', sm: '60%' } }} disabled={!isTirajeActive || isPaused || (job.status === 'terminado') || disableAllControls}>
                   <InputLabel size='small' id="parada-select-label">Causa de la Pausa</InputLabel>
                   <Select size='small'
                     labelId="parada-select-label"
@@ -632,7 +636,8 @@ export default function OperatorControlPanel({ job, onBackToList, refetchJob, di
             </CardContent>
           </Card>
         </Box>
-      </Box>        <ConfirmationDialog
+      </Box>
+      <ConfirmationDialog
         open={openConfirmation}
         onClose={handleCloseConfirmation}
         onConfirm={handleConfirmFinish}

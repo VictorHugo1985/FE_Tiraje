@@ -69,16 +69,16 @@ export default function JobCard({ job, onEdit, onCancel, onReestablish, cardBack
       opacity: isCancelled ? 0.7 : 1,
       textDecoration: isCancelled ? 'line-through' : 'none'
     }}>
-      <CardContent>
+      <CardContent sx={{ p: 1.5 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
-            <Typography variant="body2" component="div" sx={{ fontWeight: 'bold' }}>
+            <Typography variant="body2" component="div" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
               {jobType}
             </Typography>
-            <Typography color="text.secondary" variant="body2">
+            <Typography color="text.secondary" variant="caption">
                {ot} | {client}
             </Typography>
-            <Typography color="text.secondary" variant="body2">
+            <Typography color="text.secondary" variant="caption" display="block">
               {press} | Tiraje: {quantityPlanned}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -117,17 +117,17 @@ export default function JobCard({ job, onEdit, onCancel, onReestablish, cardBack
               <Chip label={isCancelled ? 'Cancelada' : getDisplayStatus(status)} color={isCancelled ? 'error' : statusColor} size="small" sx={{ mt: 0.5 }} />
               {typeof priority === 'number' && priority >= 0 && status === 'en_cola' && (
                 <Chip
-                  label={`#${priority === 0 ? priority + 1 : priority}`}
+                  label={`#${priority}`}
                   size="small"
                   variant="outlined"
                   sx={{ mt: 0.5 }}
                 />
               )}
             </Stack>
-            {status === 'en_curso' && jobStartTime && (
+            {(status === 'en_curso' || status === 'pausado') && jobStartTime && (
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-                <JobCardChronometer running={status === 'en_curso'} startTime={jobStartTime} variant="body2" sx={{ color: 'text.secondary' }}/>
+                <JobCardChronometer running={status === 'en_curso'} startTime={jobStartTime} totalPauseTime={totalPauseTime} timeline={timeline} variant="body2" sx={{ color: 'text.secondary' }}/>
               </Box>
             )}
           </Stack>

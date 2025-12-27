@@ -28,6 +28,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('access_token');
+    router.push('/login');
+  };
+
   useEffect(() => {
     const storedToken = localStorage.getItem('access_token');
     if (storedToken) {
@@ -38,11 +45,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setToken(storedToken);
         } else {
           // Token expirado
-          localStorage.removeItem('access_token');
+          logout();
         }
       } catch (error) {
         console.error("Failed to decode token", error);
-        localStorage.removeItem('access_token');
+        logout();
       }
     }
     setIsLoading(false);
@@ -62,13 +69,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       router.push('/supervisor');
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('access_token');
-    router.push('/login');
   };
 
   return (

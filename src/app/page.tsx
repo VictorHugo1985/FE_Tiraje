@@ -15,12 +15,22 @@ export default function HomePage() {
   const canAccessSupervisor = user.role === 'supervisor' || user.role === 'admin';
   const canAccessOperario = user.role === 'operario' || user.role === 'admin';
   const canAccessColaborador = user.role === 'admin' || user.role === 'supervisor';
+  const canAccessReporte = user.role === 'admin' || user.role === 'supervisor';
 
   return (
     <Container maxWidth="xl">
-      <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 2, alignItems: 'center' }}>
+      <Box sx={{
+        position: { sm: 'absolute' },
+        top: { xs: 8, sm: 16 },
+        right: { xs: 8, sm: 16 },
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: 1,
+        alignItems: 'center',
+        zIndex: 10,
+      }}>
         <Chip label={`${user.name}`} />
-        <Button variant="outlined" onClick={logout}>Cerrar Sesión</Button>
+        <Button variant="outlined" onClick={logout} size="small">Cerrar Sesión</Button>
       </Box>
       <Box
         sx={{
@@ -35,7 +45,7 @@ export default function HomePage() {
         <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 'bold' }}>
           Selección de Rol
         </Typography>
-        <Stack spacing={1.5} direction="column" sx={{ width: '100%', maxWidth: 300 }}>
+        <Stack spacing={1.5} direction="column" sx={{ width: '100%', maxWidth: { xs: 280, sm: 300 } }}>
           <Link href="/operario" passHref style={{ pointerEvents: canAccessOperario ? 'auto' : 'none' }}>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={!canAccessOperario}>
               Operario
@@ -49,6 +59,11 @@ export default function HomePage() {
           <Link href="/colaborador" passHref style={{ pointerEvents: canAccessColaborador ? 'auto' : 'none' }}>
             <Button variant="outlined" color="primary" size="large" fullWidth disabled={!canAccessColaborador}>
               Colaborador
+            </Button>
+          </Link>
+          <Link href="/reporte" passHref style={{ pointerEvents: canAccessReporte ? 'auto' : 'none' }}>
+            <Button variant="outlined" color="secondary" size="large" fullWidth disabled={!canAccessReporte}>
+              Reporte
             </Button>
           </Link>
         </Stack>

@@ -52,15 +52,15 @@ const FinishedJobCard = ({ job }: { job: Job }) => {
         <Paper elevation={1} sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.6)' }}>
             <Box sx={{ width: '100%' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
                     {job.press} | {job.jobType}
                   </Typography>
-                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'burlywood'}}>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'burlywood', fontSize: '0.75rem'}}>
                     {operatorName}
                 </Typography>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{job.ot} | {job.client}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>{job.ot} | {job.client}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>
                 {job.finishedAt ? `Terminada: ${new Date(job.finishedAt).toLocaleDateString([], { day: '2-digit', month: 'short' })} - ${new Date(job.finishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
               </Typography>
                 {chronometeredTimeDisplay && (
@@ -159,36 +159,34 @@ export default function ColaboradorPage() {
         </Stack>
 
         {loading && jobs.length === 0 ? <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}><CircularProgress /></Box> : (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                <Box sx={{ display: 'flex', gap: '16px', overflowX: 'auto', py: 1, maxWidth: '100%' }}>
-                  {pressColumns.map(press => (
-                    <Box key={press} sx={{ width: 340, flexShrink: 0 }}>
-                        <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', minHeight: 'calc(100vh - 150px)' }}>
-                            <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
-                                {press}
-                            </Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {(activeJobsByPress[press] || []).sort(customJobSorter).map(job => (
-                                    <JobCard key={job.ot} job={job} />
-                                ))}
-                            </Box>
-                        </Paper>
-                    </Box>
-                  ))}
-                  {/* Finished Jobs Column */}
-                  <Box key="terminadas" sx={{ width: 340, flexShrink: 0 }}>
-                      <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', minHeight: 'calc(100vh - 150px)', maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}>
-                          <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
-                              Terminadas
-                          </Typography>
-                          <Stack spacing={1}>
-                              {allFinishedJobs.map(job => (
-                                  <FinishedJobCard key={job.ot} job={job} />
-                              ))}
-                          </Stack>
-                      </Paper>
-                  </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 100px)' }}>
+              {pressColumns.map(press => (
+                <Box key={press} sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(50% - 16px)', lg: 'calc(25% - 16px)' } }}>
+                    <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%' }}>
+                        <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
+                            {press}
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {(activeJobsByPress[press] || []).sort(customJobSorter).map(job => (
+                                <JobCard key={job.ot} job={job} />
+                            ))}
+                        </Box>
+                    </Paper>
                 </Box>
+              ))}
+              {/* Finished Jobs Column */}
+              <Box sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(50% - 16px)', lg: 'calc(25% - 16px)' } }}>
+                  <Paper sx={{ p: 2, backgroundColor: '#f4f6f8', height: '100%', maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}>
+                      <Typography variant="h6" align="center" sx={{ fontWeight: 'bold', mb: 2 }}>
+                          Terminadas
+                      </Typography>
+                      <Stack spacing={1}>
+                          {allFinishedJobs.map(job => (
+                              <FinishedJobCard key={job.ot} job={job} />
+                          ))}
+                      </Stack>
+                  </Paper>
+              </Box>
             </Box>
         )}
       </Box>
